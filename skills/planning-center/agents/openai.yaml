@@ -1,4 +1,0 @@
-interface:
-  display_name: "计划中心"
-  short_description: "创建、调整、归档个人计划，并通过罗盘检查目标方向和下一步行动"
-  default_prompt: "使用 $planning-center 帮我整理计划，并检查目标、优先级和下一步行动。"

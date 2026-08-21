@@ -1,4 +1,0 @@
-interface:
-  display_name: "每日信息采集"
-  short_description: "通过多轮对话采集、展示并保存每日事实记录，为后续复盘提供输入"
-  default_prompt: "使用 $daily-capture 执行 /daily，记录我今天的事项、卡点和明日安排。"
