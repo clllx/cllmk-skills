@@ -1,7 +1,7 @@
 ---
 name: people
 metadata:
-  version: "1.1.1"
+  version: "1.2.0"
 description: "Moka People 人事系统的 cllmk 统一操作入口。当前覆盖「人事设置 → 员工信息设置」的字段管理：查询档案分类/分组/字段、创建自定义字段、编辑字段、停用与启用字段。用户提到 Moka People、人事系统、员工信息设置、员工字段、人事字段、档案分类、字段分组、core.mokahr.com，或 `model/list`、`field/add`、`field/edit`、`field/detail`、`field/enable`、`field/disable`、`combinedField/list` 等接口时使用本 skill。ATS 招聘侧的候选人字段、登记表、职位与 HC 字段属于 `ats` skill，不要路由到这里。先按路由表选择唯一业务文档，再按需加载参考，禁止一次性读取全部 references。"
 compatibility: "依赖 cllmk CLI 与一个 system=people 的有效会话；鉴权规则复用 cllmk skill 套件。"
 ---
@@ -14,7 +14,7 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 
 ## 路径约定
 
-本文中的 `<skill-dir>` 指本文件所在目录，即 `skills/people/`。`<cllmk-dir>` 指同级的 `skills/ats/`，鉴权与 CLI 基础文档都在那里。任一相对路径不存在时，报告 cllmk skill 套件安装不完整并停止。
+本文中的 `<skill-dir>` 指本文件所在目录，即 `skills/people/`。安装、鉴权、租户切换的基础文档在 `<skill-dir>/references/foundation/`，本 skill 自带一份，不依赖其他 skill 是否安装。任一相对路径不存在时，报告 cllmk skill 套件安装不完整并停止。
 
 ## 加载纪律
 
@@ -29,9 +29,9 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 
 | 用户意图 | 读取 |
 |---|---|
-| 安装、升级、找不到 `cllmk`、确认版本 | `<cllmk-dir>/references/foundation/install.md` |
-| 登录、退出登录（含全部退出）、登录状态、会话过期、HTTP 401/403、curl 失败分支 | `<cllmk-dir>/references/foundation/auth.md` |
-| 查看已登录公司/current、切换公司/org/profile | `<cllmk-dir>/references/foundation/tenant-switch.md` |
+| 安装、升级、找不到 `cllmk`、确认版本 | `<skill-dir>/references/foundation/install.md` |
+| 登录、退出登录（含全部退出）、登录状态、会话过期、HTTP 401/403、curl 失败分支 | `<skill-dir>/references/foundation/auth.md` |
+| 查看已登录公司/current、切换公司/org/profile | `<skill-dir>/references/foundation/tenant-switch.md` |
 
 ## People 业务路由
 
@@ -58,9 +58,9 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 
 所有 People 业务路由在发起读取租户数据或写请求前执行：
 
-1. 运行 `command -v cllmk`，再运行 `cllmk --version`。未安装时停止业务流程，按 `<cllmk-dir>/references/foundation/install.md` 引导安装。
+1. 运行 `command -v cllmk`，再运行 `cllmk --version`。未安装时停止业务流程，按 `<skill-dir>/references/foundation/install.md` 引导安装。
 2. 检查 `CLLMK_PROFILE`。非空时停止，要求用户清除后重试；业务流程只允许使用 current。
-3. 若用户指定公司、tenantId 或 profile，先按 `<cllmk-dir>/references/foundation/tenant-switch.md` 切换 current；不要在业务命令上附加 `--org`、`--profile` 或临时环境变量。
+3. 若用户指定公司、tenantId 或 profile，先按 `<skill-dir>/references/foundation/tenant-switch.md` 切换 current；不要在业务命令上附加 `--org`、`--profile` 或临时环境变量。
 4. 运行裸 `cllmk auth status`。仅当 `code == 0`、**`data.system == "people"`** 且 `tenantId/buId/corpName/env` 与目标一致时继续。People 会话不返回 `orgId` / `orgName`，不要拿这两个字段做校验。
 5. 会话是 ATS（`data.system == "ats"`）时**停止**，不要用 ATS 会话调用 People 接口。改为登录 People：
    > 当前会话是 ATS 招聘系统，本操作需要 People 人事系统。我来执行 `cllmk people pp auth login`，本机会弹出一个 Chrome 窗口，请用目标公司的账号完成登录，我接着往下做。
@@ -76,7 +76,7 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
      下一条命令会落在那里。
    - 不允许无声保留 current 在 People。
 
-7. 未登录、过期、网络错误或 HTTP 401/403 时，按 `<cllmk-dir>/references/foundation/auth.md` 对应分支处理。需要登录时由 Agent 按该文档「登录流程」执行 login，用户只在浏览器里完成认证；仅在该文档列出的四种回退情况下才把命令交还用户。
+7. 未登录、过期、网络错误或 HTTP 401/403 时，按 `<skill-dir>/references/foundation/auth.md` 对应分支处理。需要登录时由 Agent 按该文档「登录流程」执行 login，用户只在浏览器里完成认证；仅在该文档列出的四种回退情况下才把命令交还用户。
 
 8. 向用户展示不含凭证的目标环境与租户。写操作执行前按业务文档完成范围、影响面与确认项检查。
 

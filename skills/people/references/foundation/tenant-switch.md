@@ -79,15 +79,15 @@ cllmk auth switch
 | 用户提供的目标 | 命令 |
 |---|---|
 | 公司名 / 自然语言租户名 | `cllmk auth switch "<公司名>"` |
-| 明确的租户 ID | `cllmk auth switch --org <orgId>` |
-| 明确要求按公司名 | `cllmk auth switch --org "<orgName>"` |
+| 明确的租户 ID | `cllmk auth switch --org <tenantId>` |
+| 明确要求按公司名 | `cllmk auth switch --org "<corpName>"` |
 | 明确的 profile 名 | `cllmk auth switch --profile <profile>` |
 
-`--org` 和位置参数按会话所属 system 匹配身份，ATS 会话匹配 `orgId` / `orgName`。租户 ID 和公司名**合并判重** —— 命中多个 profile 时一律返回 `matches multiple profiles` 并保持 current 不变，不会因为「ID 比公司名先匹配」就替用户选一个。
+`--org` 和位置参数按会话所属 system 匹配身份，People 会话匹配 `tenantId` / `corpName`。租户 ID 和公司名**合并判重** —— 命中多个 profile 时一律返回 `matches multiple profiles` 并保持 current 不变，不会因为「ID 比公司名先匹配」就替用户选一个。
 
 位置参数额外先匹配 profile 名：**profile 名优先，再匹配租户 ID / 公司名**。同一字符串同时命中 profile 和租户身份时会选择 profile；因此已知目标类型时使用对应的显式参数，避免依赖隐式优先级。不要同时传位置参数、`--org` 和 `--profile`。
 
-profile 名由 login 按 `ats-<orgId>` 自动生成，因此 profile 名本身就能看出 system。
+profile 名由 login 按 `people-<tenantId>` 自动生成，因此 profile 名本身就能看出 system。
 
 切换只接受已存在会话文件的 profile。成功时 current 指针立即更新，响应中的 `previous` 和 `current` 用于向用户说明状态变化；Cookie 不会被修改、复制或删除。**不要把 previous 用于自动回滚。**
 
@@ -99,7 +99,7 @@ profile 名由 login 按 `ats-<orgId>` 自动生成，因此 profile 名本身�
 cllmk auth status
 ```
 
-只有返回 `code: 0`，且 `data.profile`、`data.system`、`data.env` 和 `data.orgId` / `data.orgName` 与目标一致，才报告「current 已切换且实时验证通过」。之后的业务 skill 继续使用裸 `cllmk auth status` 和裸 `cllmk curl`。email 不属于租户确认所需字段，不向用户展示。
+只有返回 `code: 0`，且 `data.profile`、`data.system`、`data.env` 和 `data.tenantId` / `data.buId` / `data.corpName` 与目标一致，才报告「current 已切换且实时验证通过」。之后的业务 skill 继续使用裸 `cllmk auth status` 和裸 `cllmk curl`。email 不属于租户确认所需字段，不向用户展示。
 
 如果 status 显示过期、未登录、网络错误或在线身份与目标不一致：
 

@@ -1,8 +1,8 @@
 ---
 name: ats
 metadata:
-  version: "1.11.0"
-description: "Moka ATS 业务的 cllmk 统一入口，覆盖候选人/申请删除、人才库移除、应聘阶段移动、候选人字段和登记表、职位与 HC 字段、Offer 字段与模块（含选项级联动、隐藏/显示）、Offer 附件模板（生成带占位符的 docx、上传、保存、电子签开关）、单 ATS 系统的职位级别（职级）增删改查与合并、职位硬删除、国家维度渠道保护期、面试评价表配置、面试题库增删改查，并在业务前按需加载安装、鉴权和 current 租户规则。用户提出上述 ATS 业务操作、相关接口路径，或要求在指定公司/org 下执行 ATS 操作时使用；只想安装 CLI 时优先 `cllmk-install`，只问登录/会话错误时优先 `cllmk-auth`，只列出或切换租户时优先 `cllmk-tenant-switch`。职位批量创建、跨租户迁移、简历/数据保留期限（用 `ats-resume-retention`）、Moka People 人事字段与 People 侧职位级别（用 `people`）不在本 skill 覆盖范围。"
+  version: "1.13.0"
+description: "Moka ATS 业务的 cllmk 统一入口，覆盖候选人/申请删除、人才库移除、应聘阶段移动、候选人字段和登记表、职位与 HC 字段、Offer 字段与模块（含选项级联动、隐藏/显示）、Offer 附件模板（生成带占位符的 docx、上传、保存、电子签开关）、单 ATS 系统的职位级别（职级）增删改查与合并、职位硬删除、国家维度渠道保护期、面试评价表配置、面试题库增删改查，并在业务前按需加载安装、鉴权和 current 租户规则。用户提出上述 ATS 业务操作、相关接口路径，或要求在指定公司/org 下执行 ATS 操作时使用；只想安装或升级 `cllmk`、找不到命令，或只问登录/登出/会话过期/HTTP 401/403 时也用本 skill（规则在 `references/foundation/install.md` 与 `auth.md`，没有独立入口）；只想查看已登录公司、列出或切换 current 租户/org/profile 时也用本 skill（规则在 `references/foundation/tenant-switch.md`）。职位批量创建、跨租户迁移、简历/数据保留期限（用 `ats-resume-retention`）、Moka People 人事字段与 People 侧职位级别（用 `people`）不在本 skill 覆盖范围。"
 compatibility: "Requires the cllmk CLI for live Moka API calls; installation guidance supports macOS, Linux, and Windows PowerShell."
 ---
 
@@ -30,7 +30,8 @@ compatibility: "Requires the cllmk CLI for live Moka API calls; installation gui
 | 登录、退出登录（含全部退出）、登录状态、会话过期、HTTP 401/403、curl 鉴权与失败分支 | `references/foundation/auth.md` |
 | 查看已登录公司/current、切换公司/org/profile | `references/foundation/tenant-switch.md` |
 
-基础能力的完整规则位于本 skill 内；独立的 `cllmk-install`、`cllmk-auth`、`cllmk-tenant-switch` skill 仍保留为兼容入口，并指向同一套文档。
+这三项基础能力的完整规则都位于本 skill 内，**没有独立 skill 入口**。
+用户单独提安装、登录、切换租户时同样进入本 skill，再按上表加载对应文档。
 
 ## ATS 业务路由
 

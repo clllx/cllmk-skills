@@ -52,7 +52,6 @@
 | 术语 | 标准说法 | 备注 |
 |---|---|---|
 | 业务公共前置 | **业务公共前置**（Step 1–6 / Step 1–8） | 所有 operation 文档首行 callout 引用同一说法 |
-| 兼容入口 | **兼容入口** | `cllmk-auth` / `cllmk-install` / `cllmk-tenant-switch` 三 skill |
 | 路由 | **route** | frontmatter 字段名，全仓库统一用 `route:`，不用 `name:` |
 | 单一事实来源 | **单一事实来源** / **SSOT** | 描述 foundation 目录的职责 |
 | 主路由 / 子场景 | **主路由** / **子场景** | 主路由由 SKILL.md 路由表派发，子场景在主路由文档内 |

@@ -440,7 +440,7 @@ cllmk curl \
 | HTTP 401 / 403 | 跑裸 `cllmk auth status` 验证；明确失效才引导重新登录，否则报告权限问题 |
 | HTTP 4xx 其他 | 展示错误详情，提示检查参数 |
 | HTTP 5xx | 服务端错误，建议稍后重试 |
-| `Request failed`（网络） | 按 `<cllmk-dir>/references/foundation/auth.md` 的「受限执行环境的网络重试」处理。**写请求不可盲目重试** —— 先用 `model/list` 或 `field/detail` 回读确认是否已生效 |
+| `Request failed`（网络） | 按 `<skill-dir>/references/foundation/auth.md` 的「受限执行环境的网络重试」处理。**写请求不可盲目重试** —— 先用 `model/list` 或 `field/detail` 回读确认是否已生效 |
 
 ---
 

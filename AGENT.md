@@ -11,7 +11,10 @@ skills/
 │   ├── SKILL.md                  # 主入口，只决策路由，不解释业务
 │   ├── references/
 │   │   ├── _glossary.md          # 术语表，全仓库单一事实来源
-│   │   ├── foundation/           # 安装 / 鉴权 / 租户切换 单一事实来源
+│   │   ├── foundation/           # 安装 / 鉴权 / 租户切换，正文只含 ATS 分支
+│   │   │   ├── install.md
+│   │   │   ├── auth.md
+│   │   │   └── tenant-switch.md
 │   │   └── operations/           # ATS 业务路由对应的主文档
 │   │       ├── <route>.md        # 顶层主文档（frontmatter 必须有 route:）
 │   │       └── <sub>/            # 复杂业务的二级目录
@@ -21,18 +24,54 @@ skills/
 │   │   ├── <route>/              # 每个主路由一个目录
 │   │   └── _test/                # 跨路由的测试脚本
 │   └── ...
-├── people/                       # People 人事系统主 skill（复用 ats 的 foundation）
-├── cllmk-auth / cllmk-install / cllmk-tenant-switch   # 兼容入口（瘦入口）
+├── people/                       # People 人事系统主 skill
+│   └── references/foundation/    # 同名三份文档，正文只含 People 分支
 └── scripts/lint_skill_routes.py  # 仓库级 lint（根目录 scripts/）
+
+doc/                              # 仅供人类阅读的背景说明，不随技能分发
+└── <topic>.md                    # 与 skills 内同名文档一一对应（如 doc/install.md ↔ foundation/install.md）
 ```
+
+**`doc/` 与 `skills/` 的分工**：`skills/` 下的文档只写模型执行时需要的内容 —— 步骤、payload、
+硬约束、路由边界；「为什么这么设计」「链路原理」「历史踩坑」写进 `doc/`。
+安装器只平铺 `skills/<name>/`，`doc/` 不会出现在用户机器上，所以**模型执行必需的规则一律不许下放到 `doc/`**。
+反过来，`skills/` 内**不允许出现任何指向 `doc/` 的引用**（相对路径会失效，仓库 URL 则是让模型去读一份它不需要的文档）：
+两侧靠同名对应（`doc/install.md` ↔ `foundation/install.md`）关联，由人在改动时自行同步。
 
 ## 2. 核心架构原则
 
 ### 2.1 单一事实来源（SSOT）
 
-- **鉴权 / 安装 / 租户切换**的规则**只允许**存放在 `ats/references/foundation/` 下。
-- `cllmk-auth` `cllmk-install` `cllmk-tenant-switch` 只是**兼容入口**（瘦入口），不存放任何规则副本。
-- 当其他 skill（如 `people`）需要使用这三项基础能力时，**引用** ats 的 foundation 路径，不要复制粘贴。
+- **鉴权 / 安装 / 租户切换**的规则**只允许手写在** `ats/references/foundation/` 下。
+- 这三项**都没有独立 skill 入口**：意图由各主 skill 的 description 与「基础能力路由」表直接接住。
+  历史上曾有 `cllmk-auth` / `cllmk-install` / `cllmk-tenant-switch` 三个瘦入口，正文只有三行指针，
+  不提供任何路由价值，却让每次 foundation 改动都多三处需要同步 —— 已全部删除。**不要再建瘦入口**。
+
+**每个主 skill 各自维护一份 foundation。**
+
+安装器只平铺 `skills/<name>/`。用户单独安装 `people` 时 `skills/ats/` 根本不存在，
+跨 skill 的相对引用会全部断链，SKILL.md 只能报「套件安装不完整」并停止 —— people 因此无法独立分发。
+所以 `ats` 和 `people` 各有一套 `references/foundation/{install,auth,tenant-switch}.md`，
+**都是手工维护的最终文档**，正文只写自己那套系统的分支：
+
+| 内容 | ats 侧 | people 侧 |
+|---|---|---|
+| login 命令 | `cllmk ats <env> auth login` | `cllmk people <env> auth login` |
+| profile 命名 | `ats-<orgId>` | `people-<tenantId>` |
+| 身份字段 | `orgId` / `orgName` | `tenantId` / `buId` / `corpName` / `realname` |
+| env 表 | `cn` / `intl` / `s3` | `pp`（`dingding` / `test` 尚未配置 URL） |
+| login 失败分支 | 账号角色不正确（未进 `/dashboard`） | env URL not configured |
+
+`install.md` 没有 system 差异，两侧内容一致。
+
+**两条维护约定**：
+
+1. **规则类改动必须两侧同步落地**。鉴权规则只改一侧的后果不是排版不一致，
+   而是一侧写着「凭证仍在盘上」另一侧写着「已登出」，模型据此做出相反的动作。
+   改 `foundation/` 时把两份文档一起打开、一起改、一起提交。
+2. **双系统对照内容两侧都保留，不许按 system 拆掉**：身份字段对照表、
+   「一个 profile 只属于一个 system」、「system 选错」的兜底、「不在本 skill 覆盖范围时改用另一个 skill」。
+   这些是模型识别「自己拿错了会话」的唯一依据，拆掉等于把安全兜底删了。
 
 ### 2.2 主入口职责最小化
 
@@ -103,7 +142,6 @@ route: <route-name>
 例如：
 
 - ✅ 「候选人主档」 ❌ 「候选人档案」「候选人记录」「候选人实体」
-- ✅ 「兼容入口」 ❌ 「瘦入口」「入口转发器」
 - ✅ 「不在本 skill 覆盖范围」 ❌ 「当前不支持」「待扩展」
 
 **但要区分两类表述**：「不在本 skill 覆盖范围」描述的是**路由边界**；「一律不允许创建」「禁止猜 type」「停止写入」描述的是**安全硬约束**。
@@ -161,6 +199,9 @@ hook 依次跑四道守卫，任一失败即拒绝提交：
 | 3 | `skills/ats/scripts/_test/test_safety_guards.py` | §5 红线在脚本层的唯一自动化守卫 |
 | 4 | `test_offer_template.py` / `test_parse_form_file.py` | 依赖 `python-docx` / `pytest`，缺依赖则跳过不阻断 |
 
+**两侧 foundation 是否同步，机器查不到**：两份都是手写的最终文档，正文按 system 不同，
+diff 天然不相等，没有可自动比对的基线。这一条只能靠 §6.3 的人工复查兜住。
+
 **为什么 2 和 3 必须在 hook 里**：本 hook 曾只跑 lint。`test_safety_guards.py` 被移动目录后，
 44 条安全断言全部 `FileNotFoundError` 而 lint 照样绿，没人察觉。守卫本身不被守卫，等于没有守卫。
 
@@ -197,8 +238,12 @@ lint 只能查形式，查不了语义。提交前请自己回答：
 - **范围边界 vs 安全硬约束有没有被写反**（见 §4.1）：两者句式都合规，但语义相反，
   错一个字就会让模型从「停下来问用户」变成「自己猜一个」。
 - **SKILL.md 新增的边界表行是否仍是「指针型」短条目**，没有偷偷展开业务细节（§2.2）。
-- **改动 `foundation/` 时（最高敏感级别）**：是否影响 `ats` / `people` / 三个兼容入口的
-  一致性？是否需要同步「基础能力路由」表？是否影响已实现业务的鉴权与租户切换流程？
+- **改动 `foundation/` 时（最高敏感级别，且 lint 查不到）**：
+  `ats` 和 `people` 两侧的同名文档都改了吗？还是只改了一侧？
+  新增的规则在两侧的措辞是否等价（只有系统专属的命令、字段、env 允许不同）？
+  是否需要同步两个 `SKILL.md` 的「基础能力路由」表与 description？是否影响已实现业务的鉴权与租户切换流程？
+- **双系统对照内容有没有被误删**：身份字段对照表、「system 选错」的兜底两侧都必须在。
+  只留自己那一半，模型就无法判断自己是不是拿错了会话 —— 这属于把安全兜底删了。
 - **是否给新写的业务脚本补了安全断言**：脚本层的红线只有 `test_safety_guards.py` 在守。
   新增写操作脚本却不在那里加用例，等于这个脚本没有守卫。
 
@@ -218,14 +263,19 @@ lint 只能查形式，查不了语义。提交前请自己回答：
 ### 新增 People 业务路由
 
 同上，但目标路径改为 `skills/people/references/operations/`，SKILL.md 改为 `skills/people/SKILL.md`。
-foundation 引用一律通过 `<cllmk-dir>/references/foundation/`，不要在 People 下复制一份。
+foundation 引用一律写 `<skill-dir>/references/foundation/`（people 自带一份），
+不要跨 skill 指向 `skills/ats/` —— 安装器不会把别的 skill 一起带上。
 
 ### 新增基础能力（安装 / 鉴权 / 租户）
 
-**先停下来**：这三项的单一事实来源在 `foundation/`，**只在一处维护**。新增/修改前必须回答：
+**先停下来**：这三项在 `ats` 和 `people` 各有一份，**改动必须两侧同步**。新增/修改前必须回答：
 - 这是新规则还是新例外？是否要在原文件里新增章节，而不是新建文件？
-- 需要同步更新对应瘦入口的 `description` 吗？
-- 需要同步更新 `ats/SKILL.md` 的「基础能力路由」表吗？
+- 这段内容对 ATS 和 People 一样吗？一样就两侧写同样的话；不一样就各写自己那套命令、字段和 env。
+- 需要同步更新 `ats/SKILL.md` / `people/SKILL.md` 的 description 吗？
+  （安装/鉴权/租户切换的触发面全靠它，没有独立入口兜底）
+- 需要同步更新两个 SKILL.md 的「基础能力路由」表吗？
+
+改完把两侧文档一起提交，commit message 里写清影响面（§9）。
 
 ## 8. 反模式清单（禁止）
 
@@ -236,7 +286,9 @@ foundation 引用一律通过 `<cllmk-dir>/references/foundation/`，不要在 P
 | 用 `name:`/`description:` 作为 frontmatter 键 | 统一 `route:` |
 | 「当前不覆盖」「待建」 | 统一「不在本 skill 覆盖范围」+ 给出替代路径 |
 | 「本路由 通过」/「本路由 覆盖」 | 「本路由通过」「本路由覆盖」 |
-| 在 people 下复制一份 foundation | 用 `<cllmk-dir>/references/foundation/` 引用 |
+| 只改一侧的 `foundation/` 就提交 | 两侧同名文档一起改、一起提交（§2.1） |
+| 跨 skill 引用 `skills/ats/references/foundation/` | 用本 skill 的 `<skill-dir>/references/foundation/`（安装器不会带上别的 skill） |
+| 把双系统对照内容也按 system 拆开 | 身份字段表、「system 选错」兜底两侧都保留，那是模型识别拿错会话的依据 |
 | 新增二级目录子文档时也加 `route:` | 只有主文档（顶层 `.md` / `index.md`）需要 `route:` |
 | 加新术语但不更新 `_glossary.md` | 先登记术语再使用 |
 | 不看 lint 直接提交 | 装 hook：`git config core.hooksPath .githooks` |
@@ -247,5 +299,6 @@ foundation 引用一律通过 `<cllmk-dir>/references/foundation/`，不要在 P
 ## 9. 版本与审计
 
 - 每个 skill 的 `metadata.version` 遵循 semver：新增路由 → minor；修改业务规则 → minor；仅 rewording → patch。
-- 涉及 foundation 的改动，**必须**在 git commit message 中显式说明影响面。
+- 涉及 foundation 的改动，**必须**在 git commit message 中显式说明影响面，
+  并列出实际改到的两侧文件（只列一侧通常意味着漏改）。
 - 仓库内的 git commit 历史是合规审计源，不允许 force-push 主线。

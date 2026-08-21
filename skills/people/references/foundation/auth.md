@@ -6,13 +6,13 @@ description: "cllmk 登录、查询与登出的共享规则：用户表达意图
 
 # cllmk 鉴权共享规则
 
-本文档定义如何通过 `cllmk` CLI 对 Moka ATS（招聘系统）做鉴权检查、登录、登出与 API 调用。所有调用 Moka API 的 skill 在发起请求前必须完成本文的「前置鉴权检查」。
+本文档定义如何通过 `cllmk` CLI 对 Moka People（人事系统）做鉴权检查、登录、登出与 API 调用。所有调用 Moka API 的 skill 在发起请求前必须完成本文的「前置鉴权检查」。
 
 **交互模型**：用户表达意图，Agent 执行 `cllmk` 命令，用户只在浏览器里完成身份认证。登录、查询、登出三个动作都由 Agent 代跑，只有「必须回退到用户自己在终端跑」列出的四种情况才把命令交还用户。
 
 | 动作 | 命令 | 对磁盘的影响 |
 |---|---|---|
-| 登录 | `cllmk ats <env> auth login` | 写目标 profile 的会话文件；更新 current 指针 |
+| 登录 | `cllmk people <env> auth login` | 写目标 profile 的会话文件；更新 current 指针 |
 | 查询 | `cllmk auth status` / `profiles` / 无参 `switch` | 只读，**永不删凭证** |
 | 登出 | `cllmk auth logout [--all]` | 只删会话文件，**永不改 current 指针** |
 
@@ -21,7 +21,7 @@ current 指针只由 `login` 和 `auth switch` 写。
 ## 会话模型
 
 - **一个 profile = 一个 system + 一个 env + 一家公司的独立会话**，彼此物理隔离，因此可同时保持多家公司的登录状态，再通过 current 指针串行切换业务租户。
-- `login` 成功后 CLI 自动按 `ats-<orgId>` 建 profile 并更新 current 指针；用户在浏览器登录哪家公司，会话就归到哪家公司名下，**不会覆盖其他公司的会话**。
+- `login` 成功后 CLI 自动按 `people-<tenantId>` 建 profile 并更新 current 指针；用户在浏览器登录哪家公司，会话就归到哪家公司名下，**不会覆盖其他公司的会话**。
 - 凭证文件里的身份字段是**登录时刻的快照**，只用于离线定位 profile；会话是否仍有效以实时 `cllmk auth status` 为准。
 - 一个 profile 只属于一个 system。要同时使用 ATS 和 People，需分别 login 形成两个 profile，再按 current 串行切换。
 
@@ -38,7 +38,7 @@ current 指针只由 `login` 和 `auth switch` 写。
 
 | 命令 | 说明 |
 |------|------|
-| `cllmk ats <env> auth login` | 登录 ATS。登录后自动按公司建 profile 并更新指针 |
+| `cllmk people <env> auth login` | 登录 People。登录后自动按公司建 profile 并更新指针 |
 | `cllmk auth switch ...` | 列出或切换持久化 current；完整参数和失败行为见 `tenant-switch.md` |
 | `cllmk auth status` | 实时验证目标会话；确认 `profile` / `system` / `env` 和该 system 的身份字段，不向用户展示 email |
 | `cllmk auth profiles` | **离线**列出所有有会话的 profile，并标记持久化 current；不向用户展示 email |
@@ -50,7 +50,7 @@ current 指针只由 `login` 和 `auth switch` 写。
 
 ## current 租户规则
 
-需要列出、选择或切换 current 时，按需完整读取同目录的 `tenant-switch.md`。以下行为一律以该文件为准，本文不重复：无参数 `cllmk auth switch` 的离线列表与持久化 current 语义、`CLLMK_PROFILE` 对查询/切换/业务命令的不同影响、按 profile 或 `orgId` 或公司名选择目标及参数冲突处理、切换后裸 `cllmk auth status` 的实时验证、status 失败时保留新 current 且不自动回滚。
+需要列出、选择或切换 current 时，按需完整读取同目录的 `tenant-switch.md`。以下行为一律以该文件为准，本文不重复：无参数 `cllmk auth switch` 的离线列表与持久化 current 语义、`CLLMK_PROFILE` 对查询/切换/业务命令的不同影响、按 profile 或 `tenantId` 或公司名选择目标及参数冲突处理、切换后裸 `cllmk auth status` 的实时验证、status 失败时保留新 current 且不自动回滚。
 
 实时 status、登录、HTTP 与网络错误处理按本文后续章节执行。
 
@@ -65,8 +65,8 @@ current 指针只由 `login` 和 `auth switch` 写。
 三种指定方式（`--profile` 与 `--org` 互斥，参数可放在命令任意位置）：
 
 ```bash
-# 方式 A：--org，按 `orgId` 或公司名精确匹配自动反查 profile
-cllmk --org <org-id-or-company-name> curl --url /api/...
+# 方式 A：--org，按 `tenantId` 或公司名精确匹配自动反查 profile
+cllmk --org <tenant-id-or-company-name> curl --url /api/...
 cllmk --org "<company-name>" auth status
 
 # 方式 B：--profile，直接指定 profile 名（auth profiles 可查）
@@ -95,9 +95,9 @@ current 指针是共享状态，同一配置目录下不要并行跑不同租户
 
 | system | env | Web URL |
 |---|---|---|
-| `ats` | `cn` | https://app.mokahr.com |
-| `ats` | `intl` | https://hire-r1.mokahr.com |
-| `ats` | `s3` | https://staging-3.mokahr.com |
+| `people` | `pp` | https://core.mokahr.com |
+
+People 的 `dingding` / `test` 尚未配置 URL，**不能登录也不能调用**；遇到时停止流程并告知该环境待配置。
 
 ## 前置鉴权检查（调用方 skill 必做）
 
@@ -157,7 +157,7 @@ $env:CLLMK_PROFILE
 
 | `code` | `msg` 关键字 | 含义 | 下一步 |
 |--------|--------------|------|--------|
-| `0` | （空） | 已登录 | 读 `data.profile` / `system` / `env` 和 `orgId` / `orgName`，**确认是目标公司/系统**后继续；不向用户展示 email |
+| `0` | （空） | 已登录 | 读 `data.profile` / `system` / `env` 和 `tenantId` / `buId` / `corpName` / `realname`，**确认是目标公司/系统**后继续；不向用户展示 email |
 | `1` | `Not logged in` | current profile 无会话 | 先运行无参数 `cllmk auth switch` 看目标公司是否已有其他 profile；都没有再进入登录流程 |
 | `1` | `Session expired. Credentials preserved` | 状态接口明确返回 HTTP 401，`data.expired == true`；**凭证仍保留在盘上** | 进入登录流程重新登录（login 会覆盖过期会话）。不要为了「清理」去跑 logout —— status 是纯查询，过期凭证留在盘上不会让任何请求成功 |
 | `1` | `Auth status failed: HTTP ... Credentials preserved` | 非 401 响应，不能证明凭证失效 | 保留会话并报告原始状态；不进入登录流程 |
@@ -168,7 +168,7 @@ $env:CLLMK_PROFILE
 | `1` | `Request failed: ...` | 网络/DNS 错误，或当前执行环境限制联网 | 按下方「受限执行环境的网络重试」处理；不进入登录流程 |
 | `1` | `Login timeout. Browser closed.` | 180 秒内用户未完成浏览器登录 | 提议再执行一次 login；不是故障，不动 current 和已有会话；这是 login 返回 |
 | `1` | `Chrome not found. ...` | 本机没有可用 Chrome | 按「必须回退到用户自己在终端跑」交还用户；这是 login 返回 |
-| `1` | `账号角色不正确` | ATS login 后未进入 `/dashboard`，本次 Cookie 未保存 | 请用户换用具有 ATS 招聘权限的账号，再由 Agent 重新执行 login；这是 login 返回 |
+| `1` | `People env '<env>' URL not configured yet. TODO.` | People dingding/test 的 login 占位 env | 停止流程并告知该环境尚未配置；这是 login 返回 |
 | `1` | `Old syntax is no longer supported. Use: ...` | 误用老语法 | 按 msg 给出的新语法重试 |
 
 ### 受限执行环境的网络重试
@@ -177,7 +177,7 @@ $env:CLLMK_PROFILE
 
 遇到 `Request failed: ...` 时先判断命令是否可能产生写入，再决定能否重试：
 
-1. `cllmk auth status` 是只读状态检查，允许在用户本地同命令成功或工具明确受限联网时，为**原命令**申请受控网络访问并重试一次。
+1. `cllmk auth status` 是只读状态检查，即使 People 环境内部使用 POST，也允许在用户本地同命令成功或工具明确受限联网时，为**原命令**申请受控网络访问并重试一次。
 2. `cllmk curl` 的 GET / HEAD 属于幂等读取，可按相同条件对原命令重试一次。
 3. POST / PUT / PATCH / DELETE 等写请求只有在错误明确发生于建立连接前（目前仅 `ENOTFOUND` / `EAI_AGAIN` DNS 解析失败）时，才能为原命令申请网络权限并重试一次，因为请求尚未到达服务端。
 4. 写请求遇到 `ECONNRESET`、`ETIMEDOUT`、`socket hang up` 或其他无法证明发生在连接前的错误时，不得直接重试。先用业务文档规定的查询接口回读，确认写入是否已经生效；无法确认时停止并向用户报告「结果未知」，避免重复创建、更新或删除。
@@ -199,9 +199,9 @@ $env:CLLMK_PROFILE
 
 发起命令后**立即**告知用户去浏览器操作，不要轮询、不要反复查 status 刷屏：
 
-> 已为你执行 `cllmk ats <env> auth login`，本机会弹出一个 Chrome 窗口。请用 **<目标公司>** 的账号完成登录（登录哪家公司，会话就自动归档到哪家公司名下，不会影响其他公司的会话）。登录成功后浏览器自动关闭，我会接着往下做。
+> 已为你执行 `cllmk people <env> auth login`，本机会弹出一个 Chrome 窗口。请用 **<目标公司>** 的账号完成登录（登录哪家公司，会话就自动归档到哪家公司名下，不会影响其他公司的会话）。登录成功后浏览器自动关闭，我会接着往下做。
 
-**先确定目标 env**，不要默认 `cn`：招聘业务的 system 固定为 `ats`，env 是 `cn` / `intl` / `s3`。用户已指明环境时按用户的；只说了公司没说环境时默认 `cn`，并在告知里把环境明示出来。常用实例：`cllmk ats cn auth login`。人事业务不在本 skill 覆盖范围，需要 People 会话时改用 `people` skill。
+**先确定目标 env**：人事业务的 system 固定为 `people`，可用 env 只有 `pp`。用户已指明环境时按用户的；只说了公司没说环境时默认 `pp`，并在告知里把环境明示出来。常用实例：`cllmk people pp auth login`。招聘业务不在本 skill 覆盖范围，需要 ATS 会话时改用 `ats` skill。
 
 不需要带 `--profile` —— CLI 自动按公司命名。只有用户明确要求自定义 profile 名时才加。
 
@@ -216,18 +216,18 @@ $env:CLLMK_PROFILE
 
 回退话术：
 
-> 我这边没法代你打开浏览器（<具体原因>）。请在你自己的终端运行 `cllmk ats <env> auth login`，用 **<目标公司>** 的账号完成登录后告诉我，我接着往下做。
+> 我这边没法代你打开浏览器（<具体原因>）。请在你自己的终端运行 `cllmk people <env> auth login`，用 **<目标公司>** 的账号完成登录后告诉我，我接着往下做。
 
 超时是**用户没来得及操作**，不是会话损坏或环境故障：直接提议重跑一次登录，不要报告成 CLI 错误，也不要去动 current 或已有会话。
 
 ### 其它 login 失败分支
 
-- **system 选错**：登录成功但会话不可用于目标业务 —— ATS 会话不能调 People 接口，反之亦然。已有会话属于另一套系统时，不要切 current（switch 只能在已保存会话之间切），而是登录目标 system。
-- **ATS 账号角色不正确**：ATS 登录后必须进入 `/dashboard`。若已认证但跳到其他系统路径，CLI 返回账号角色不正确、关闭临时浏览器且**不保存本次 Cookie**；请用户换一个具有 ATS 招聘权限的账号，再由 Agent 重新执行登录。
+- **system 选错**：登录成功但会话不可用于目标业务 —— People 会话不能调 ATS 接口，反之亦然。已有会话属于另一套系统时，不要切 current（switch 只能在已保存会话之间切），而是登录目标 system。
+- **People `dingding` / `test`**：尚未配置 URL，不能登录，按 Step 3 对应分支停止。
 
 ### 登录后的验证
 
-`login` 成功后不要直接把它的返回值当作结论展示 —— `data` 里带 `email`。执行裸 `cllmk auth status`（登录已把指针移到新会话，无需路由参数），确认 `code: 0` **且 `orgName` 是目标公司**再继续，向用户只报 profile / 公司名 / system / env。
+`login` 成功后不要直接把它的返回值当作结论展示 —— `data` 里带 `email`。执行裸 `cllmk auth status`（登录已把指针移到新会话，无需路由参数），确认 `code: 0` **且 `corpName` 是目标公司**再继续，向用户只报 profile / 公司名 / system / env。
 
 登错公司 → `cllmk auth switch` 切回正确公司；正确公司尚无会话 → 重新执行 login。
 
@@ -304,7 +304,7 @@ cllmk curl --url <url> [--method <method>] [--payload <json>] [--filter <path>]
 cllmk curl --url /api/v2/org/info --method GET --filter jobFields
 ```
 
-业务 curl 始终使用 current。发起请求前用裸 `auth status` 确认 `system` 是 `ats`、`orgName` 是目标公司。
+业务 curl 始终使用 current。发起请求前用裸 `auth status` 确认 `system` 是 `people`、`corpName` 是目标公司。
 
 ### curl 的失败行为
 
@@ -327,7 +327,7 @@ cllmk curl --url /api/v2/org/info --method GET --filter jobFields
 
 - **禁止输出 cookies 明文**（如 `moka-jwt`、`moka-uid` 的 value）到终端、日志或任何可见位置。
 - **禁止手动编辑** `~/.config/cllmk/auth.json`、`~/.config/cllmk/profiles/**/auth.json` 及 `~/.config/cllmk/current-profile`，必须通过 login / switch / logout 管理。
-- `status` / `profiles` / `logout` 只展示确认目标租户所需的 profile、system、env 和 `orgId`、`orgName`。
+- `status` / `profiles` / `logout` 只展示确认目标租户所需的 profile、system、env 和 `tenantId`、`buId`、`corpName`、`realname`。
 - **email 出现在 CLI 返回里是设计如此**（`login` / `status` / `profiles` 的 `data`，以及 `logout` 的 `cleared` / `remaining`），不是缺陷，也不需要改命令。约束的对象是 Agent 的转述：不得把 email 写进回复、日志或摘要，确认租户一律用公司名与租户 ID。
 - Agent 代跑 `login` 只能用受工具管理的长运行会话，不得用 `&` / `nohup` / `disown` / `setsid` 自行后台化。
 - `curl` 响应不因「不含凭证明文」就可以完整展示。优先使用 `--filter`、结构化解析或业务脚本，只向用户返回完成任务所需字段；候选人简历、邮箱、电话、证件信息和附件地址等敏感业务数据不得无关展开。
