@@ -1,9 +1,9 @@
 ---
 name: people
 metadata:
-  version: "1.2.0"
-description: "Moka People 人事系统的 cllmk 统一操作入口。当前覆盖「人事设置 → 员工信息设置」的字段管理：查询档案分类/分组/字段、创建自定义字段、编辑字段、停用与启用字段。用户提到 Moka People、人事系统、员工信息设置、员工字段、人事字段、档案分类、字段分组、core.mokahr.com，或 `model/list`、`field/add`、`field/edit`、`field/detail`、`field/enable`、`field/disable`、`combinedField/list` 等接口时使用本 skill。ATS 招聘侧的候选人字段、登记表、职位与 HC 字段属于 `ats` skill，不要路由到这里。先按路由表选择唯一业务文档，再按需加载参考，禁止一次性读取全部 references。"
-compatibility: "依赖 cllmk CLI 与一个 system=people 的有效会话；鉴权规则复用 cllmk skill 套件。"
+  version: "1.4.0"
+description: "Moka People 人事系统的 cllmk 统一操作入口。当前覆盖「人事设置 → 员工信息设置」的字段管理：查询档案分类/分组/字段、创建自定义字段、编辑字段、停用与启用字段。用户提到 Moka People、人事系统、员工信息设置、员工字段、人事字段、档案分类、字段分组、core.mokahr.com，或 `model/list`、`field/add`、`field/edit`、`field/detail`、`field/enable`、`field/disable`、`combinedField/list` 等接口时使用本 skill。ATS 招聘侧的候选人字段、登记表、职位与 HC 字段属于 `ats` skill，不要路由到这里。只问 `cllmk` 安装升级、登录登出、会话过期、查看或切换已登录公司时也用本 skill（规则在 `references/foundation/`，没有独立入口）。先按路由表选择唯一业务文档，再按需加载参考，禁止一次性读取全部 references。"
+compatibility: "依赖 cllmk CLI 与一个 system=people 的有效会话；安装、鉴权、租户切换规则见本 skill 的 references/foundation/。"
 ---
 
 # Moka People 统一路由
@@ -25,12 +25,12 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 
 ## 基础能力路由
 
-鉴权、安装、租户切换**不在本 skill 内重复定义**，一律读取 cllmk 套件的单一事实来源：
+鉴权、安装、租户切换的规则在 `<skill-dir>/references/foundation/` 下自带一份（正文只含 People 分支），**不依赖其他 skill 是否安装**。这几项没有独立 skill 入口，用户单独提这些意图时同样进入本 skill，再按下表加载对应文档：
 
 | 用户意图 | 读取 |
 |---|---|
 | 安装、升级、找不到 `cllmk`、确认版本 | `<skill-dir>/references/foundation/install.md` |
-| 登录、退出登录（含全部退出）、登录状态、会话过期、HTTP 401/403、curl 失败分支 | `<skill-dir>/references/foundation/auth.md` |
+| 登录、退出登录（含全部退出）、登录状态、会话过期、HTTP 401/403 | `<skill-dir>/references/foundation/auth.md` |
 | 查看已登录公司/current、切换公司/org/profile | `<skill-dir>/references/foundation/tenant-switch.md` |
 
 ## People 业务路由
@@ -98,4 +98,7 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 - `field/edit` 是**全量覆盖**语义，漏传的键会被重置。任何编辑前必须先用 `field/detail` 读回原值。
 - 遇到未覆盖的接口形态、字段类型或数据结构时停止写入，说明缺少的 UI curl 或业务信息，不猜测 payload。
 - **语义未确认的参数不得使用默认值静默提交。** 必须在确认环节单独列出并由用户明示取值。（当前无此类参数：`applyTargetLibrary` 已于 2026-07-30 确认语义，见业务文档 §5.3.1。）
+- `cllmk curl` 的响应不因「不含凭证明文」就可以完整展示：优先用 `--filter`、结构化解析或业务脚本，
+  只向用户返回完成任务所需字段；员工证件号、银行卡号、联系方式等个人敏感信息不得无关展开。
+- 返回完整字段或分组列表的接口响应体积可能很大，先 `--filter` 或按脚本解析，不要把整份响应读进上下文或打到终端。
 - 员工档案字段是全租户共享配置，一次改动影响所有员工。批量操作前明确告知影响范围。

@@ -29,7 +29,8 @@ skills/
 └── scripts/lint_skill_routes.py  # 仓库级 lint（根目录 scripts/）
 
 doc/                              # 仅供人类阅读的背景说明，不随技能分发
-└── <topic>.md                    # 与 skills 内同名文档一一对应（如 doc/install.md ↔ foundation/install.md）
+└── <topic>.md                    # 多数与 skills 内同名文档对应（doc/install.md ↔ foundation/install.md）；
+                                  # 也允许没有对应文件（doc/curl.md 是写文档时的规范，见下）
 ```
 
 **`doc/` 与 `skills/` 的分工**：`skills/` 下的文档只写模型执行时需要的内容 —— 步骤、payload、
@@ -38,12 +39,18 @@ doc/                              # 仅供人类阅读的背景说明，不随�
 反过来，`skills/` 内**不允许出现任何指向 `doc/` 的引用**（相对路径会失效，仓库 URL 则是让模型去读一份它不需要的文档）：
 两侧靠同名对应（`doc/install.md` ↔ `foundation/install.md`）关联，由人在改动时自行同步。
 
+**`doc/` 不只放「为什么」，也放写文档时才用的规范。** `doc/curl.md` 是 `cllmk curl` 的完整命令规范，
+它的读者是**写业务文档的人**，不是执行任务的模型 —— 模型需要的是业务文档里那条已经写全的 `cllmk curl ...`，
+而不是一份通用手册（加载纪律下它永远读不到，理由见 `doc/curl.md` §6）。
+把这类规范放进 `doc/` 时必须逐条确认：其中**执行必需**的部分已经落到 `skills/` 内模型一定会读到的位置
+（业务文档内联、或 `SKILL.md` 的全局安全规则），而不是随文件一起离开了分发范围。
+
 ## 2. 核心架构原则
 
 ### 2.1 单一事实来源（SSOT）
 
-- **鉴权 / 安装 / 租户切换**的规则**只允许手写在** `ats/references/foundation/` 下。
-- 这三项**都没有独立 skill 入口**：意图由各主 skill 的 description 与「基础能力路由」表直接接住。
+- **鉴权 / 安装 / 租户切换**的规则**只允许手写在各主 skill 自己的** `references/foundation/` 下（两侧各一份，见下）。
+- 这几项**都没有独立 skill 入口**：意图由各主 skill 的 description 与「基础能力路由」表直接接住。
   历史上曾有 `cllmk-auth` / `cllmk-install` / `cllmk-tenant-switch` 三个瘦入口，正文只有三行指针，
   不提供任何路由价值，却让每次 foundation 改动都多三处需要同步 —— 已全部删除。**不要再建瘦入口**。
 
@@ -59,10 +66,15 @@ doc/                              # 仅供人类阅读的背景说明，不随�
 | login 命令 | `cllmk ats <env> auth login` | `cllmk people <env> auth login` |
 | profile 命名 | `ats-<orgId>` | `people-<tenantId>` |
 | 身份字段 | `orgId` / `orgName` | `tenantId` / `buId` / `corpName` / `realname` |
-| env 表 | `cn` / `intl` / `s3` | `pp`（`dingding` / `test` 尚未配置 URL） |
+| env（落在 `auth.md`「登录流程」，不再单列 system×env 表） | `cn` / `intl` / `s3` | `pp`（`dingding` / `test` 尚未配置 URL） |
 | login 失败分支 | 账号角色不正确（未进 `/dashboard`） | env URL not configured |
+| 业务成功码（落在 `SKILL.md` 全局安全规则与各业务文档） | 外层 `code == 0` + 内层 `data.success` | 外层 `code: 0` 只代表 HTTP 通了，业务成败看内层 `code == 200` |
 
 `install.md` 没有 system 差异，两侧内容一致。
+
+**foundation 下没有 curl 手册**：`cllmk curl` 的命令签名与 `--filter` 语法是写文档时的规范，放在 `doc/curl.md`；
+业务文档负责写出完整可执行的命令，两条对所有路由都成立的响应约束（不无关展开敏感字段、大响应先 `--filter`）
+落在两个 `SKILL.md` 的全局安全规则里。**不要再在 `foundation/` 下新建 curl 手册。**
 
 **两条维护约定**：
 
@@ -87,9 +99,9 @@ doc/                              # 仅供人类阅读的背景说明，不随�
 
 | 层级 | 文件位置 | 内容 |
 |---|---|---|
-| 路由层 | `SKILL.md` 路由表 | 意图关键词 → route → 主文档路径 |
+| 路由层 | `SKILL.md` 路由表 | 意图关键词 → route → 主文档路径；ats 侧另有「业务域」列做一级归组 |
 | 业务层 | `references/operations/<route>.md` | 接口元信息、业务流程、payload、错误处理 |
-| 通用层 | `references/foundation/*.md` | 鉴权、安装、租户共享规则 |
+| 通用层 | `references/foundation/*.md` | 鉴权、安装、租户切换的共享规则 |
 | 术语层 | `references/_glossary.md` | 业务术语标准说法 |
 
 **任何文档不允许跨层扩写**。
@@ -255,7 +267,9 @@ lint 只能查形式，查不了语义。提交前请自己回答：
 2. frontmatter 写 `route: <route>`。
 3. 业务主文档 H1 后插入首行 callout（见 §3.2）。
 4. 超过 400 行的文档加「## 目录」。
-5. 在 `skills/ats/SKILL.md` 路由表登记「意图关键词 → route → 文档路径」。
+5. 在 `skills/ats/SKILL.md` 路由表登记「业务域 → 意图关键词 → route → 文档路径」。
+   业务域优先归进已有的一组（hc / job / candidate / application / interview / offer / talent-pool / protection-period）；
+   确实是新领域才在表末追加一域，并保持域的排列仍是招聘链路顺序。
 6. 在 `_glossary.md` 登记新增术语。
 7. 如产生脚本，放到 `skills/ats/scripts/<route>/` 目录下，脚本开头须有英文 docstring + 中文安全提示。
 8. 跑 `python3 scripts/lint_skill_routes.py` 通过后才能提交。
@@ -268,8 +282,15 @@ foundation 引用一律写 `<skill-dir>/references/foundation/`（people 自带�
 
 ### 新增基础能力（安装 / 鉴权 / 租户）
 
-**先停下来**：这三项在 `ats` 和 `people` 各有一份，**改动必须两侧同步**。新增/修改前必须回答：
+**先停下来**：这几项在 `ats` 和 `people` 各有一份，**改动必须两侧同步**。新增/修改前必须回答：
 - 这是新规则还是新例外？是否要在原文件里新增章节，而不是新建文件？
+  只有当一段内容**自己就是一项能力**（有独立触发意图、被 `SKILL.md` 路由表登记、被业务文档按名引用），才值得独立成文件；
+  否则塞进原文件的一个新章节。
+- **先问它会不会被读到。** 加载纪律下一次业务任务只读「业务公共前置 + 一个 operations 主文档」，
+  基础文档只在用户单独提该意图、或业务文档明确点名时才打开。一份没有独立触发意图的通用手册放进 `foundation/`，
+  结果只有两种：永远没人打开，或者得在每份业务文档里加一句跳转（维护成本乘以业务数量）。
+  `cllmk curl` 的手册就是这样从 `auth.md` 拆进 `foundation/`、又整份移到 `doc/curl.md` 的 —— 正确解法是
+  **执行必需的部分内联进真正会被读到的位置**（业务文档，或 `SKILL.md` 的全局安全规则），规范本体留给写文档的人。
 - 这段内容对 ATS 和 People 一样吗？一样就两侧写同样的话；不一样就各写自己那套命令、字段和 env。
 - 需要同步更新 `ats/SKILL.md` / `people/SKILL.md` 的 description 吗？
   （安装/鉴权/租户切换的触发面全靠它，没有独立入口兜底）
@@ -294,6 +315,7 @@ foundation 引用一律写 `<skill-dir>/references/foundation/`（people 自带�
 | 不看 lint 直接提交 | 装 hook：`git config core.hooksPath .githooks` |
 | 移动脚本/测试目录后不跑测试 | `__file__` 相对路径会集体失效，移动后必须实跑一遍 |
 | 把安全硬约束改写成范围边界 | 保留「一律不允许」「禁止」「停止写入」的禁止语气（§4.1） |
+| 在 `foundation/` 建一份没有独立触发意图的通用手册 | 规范本体放 `doc/`，执行必需的部分内联进业务文档或 `SKILL.md` 全局安全规则（§7） |
 | SKILL.md 加了一步却不改下游 callout 的 `Step 1–N` | lint 会拦；不要手改绕过 |
 
 ## 9. 版本与审计

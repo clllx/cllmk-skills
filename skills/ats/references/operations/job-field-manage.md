@@ -52,8 +52,9 @@ cllmk curl --url "/api/v2/org/info" --method GET --filter jobFields
 
 > **注意**：该接口完整响应体积较大且可能包含与当前任务无关的业务配置。必须使用 `--filter jobFields` 只保留职位字段，再通过 `jq` 做必要筛选；不要直接展开完整响应。
 >
-> 若返回 `code:1` 且消息明确指向 filter 路径错误，按 `references/foundation/auth.md`
-> 的 filter 失败规则检查最小父路径；不得直接判定该租户没有职位字段配置。
+> 若返回 `code:1` 且消息明确指向 filter 路径错误，那是 `--filter` 的**本地**筛选失败，
+> 不是接口失败：改读不含敏感数据的最小父路径（如 `data`）确认字段是否真的存在，
+> 不得直接判定该租户没有职位字段配置。
 
 ### Q3. 字段列表所在路径与字段结构
 
@@ -150,15 +151,15 @@ jq '.data.jobFields[] | select(.id==<ID>) | .detail | map(fromjson)'
 
 **必须**先按 `<skill-dir>/SKILL.md` 的「业务公共前置」执行：
 
-1. **Step 0** — 确认 `cllmk` 已安装（`command -v cllmk`）；未安装则展示安装指引，终止流程
-2. **Step 1** — 执行 `cllmk auth status`
-3. **Step 2/3** — 解析输出并分支处理：
+1. 确认 `cllmk` 已安装（`command -v cllmk`）；未安装则展示安装指引，终止流程
+2. 执行 `cllmk auth status`
+3. 解析输出并分支处理（完整分支表见 `references/foundation/auth.md` 的 Step 5）：
 
 | 输出 | 处理 |
 |------|------|
 | `code:0` 且 `data.system === "ats"` | 继续第 2 步 |
 | `code:0` 且 `data.system === "people"` | 提示当前登录 People 系统，询问是否切换到 ATS，确认后执行 `cllmk ats <env> auth login` |
-| `code:1, msg: "Not logged in"` | 确认目标 env 后执行 `cllmk ats <env> auth login`，完成后回到 Step 1 |
+| `code:1, msg: "Not logged in"` | 确认目标 env 后执行 `cllmk ats <env> auth login`，完成后回到本节第 2 步 |
 | `code:1, msg: "Session expired. Credentials preserved..."` | 同上；**凭证未被清除**，重新 login 会覆盖过期会话，不要跑 logout 去「清理」 |
 | `code:1, msg: "Request failed..."` | 按 `references/foundation/auth.md` 的「受限执行环境的网络重试」处理；不得触发登录 |
 
@@ -496,4 +497,4 @@ cllmk curl \
 1. `cllmk auth status` 返回 `code:1, msg: "Not logged in"`
 2. 询问用户目标 env（如 intl / cn / s3）
 3. 在受工具管理的长运行会话中执行 `cllmk ats intl auth login`，并立即告知用户去弹出的 Chrome 里完成登录
-4. 命令返回后跑裸 `cllmk auth status` 确认 `code:0` 且 `orgName` 是目标公司，回到 Step 1 重新检查
+4. 命令返回后跑裸 `cllmk auth status` 确认 `code:0` 且 `orgName` 是目标公司，回到本节第 2 步重新检查

@@ -1,6 +1,6 @@
 # cllmk 鉴权：背景说明
 
-本文是 `skills/ats/references/foundation/auth.md` 的人类阅读版补充：记录「为什么这么设计」。
+本文是 `skills/ats/references/foundation/auth.md` 与 `skills/people/references/foundation/auth.md` 的人类阅读版补充：记录「为什么这么设计」。
 `skills/` 只写模型执行时需要的步骤与硬约束；本文不随技能分发，模型不会读到，**因此任何执行必需的规则都不允许只写在这里**。
 
 ## 1. 为什么是 profile 而不是单会话
@@ -55,17 +55,133 @@ Codex、Claude Code 等执行环境会把工具进程放进网络沙箱。此时
 本 skill 依赖 `<cllmk-dir>/references/foundation/auth.md`。在执行任何 `cllmk curl` 前，请按其前置检查工作流
 （确认 `cllmk` 已安装且 `CLLMK_PROFILE` 为空 → 需要切换时按 `tenant-switch.md` 更新 current →
 用裸 `cllmk auth status` 确认公司与系统正确 → 按 `auth.md` 分支处理，需要登录时由 Agent
-按 `auth.md`「登录流程」代为执行 login）完成鉴权。
+按 `auth.md`「登录流程」代为执行 login）完成鉴权。`cllmk curl` 的具体接口与 payload 写在自己的业务文档里。
 ```
+
+注意这段示例里**没有** curl 手册的引用。`cllmk curl` 的命令签名与 `--filter` 语法不在 `skills/` 内的任何文件里，
+它是写文档时的规范（`doc/curl.md`），由作者在业务文档里直接写出可执行的完整命令 —— 见 §9。
 
 ## 7. 为什么删掉了「失败场景处理（完整清单）」
 
-auth.md 曾在末尾附一份 12 条的失败清单，每条都是前文 Step 3 分支表、curl 失败表、登录/登出小节的复述。
+auth.md 曾在末尾附一份 12 条的失败清单，每条都是前文 Step 5 分支表、curl 失败表、登录/登出小节的复述。
 两处描述同一个分支，改动时必然漏掉一处 —— 而鉴权失败分支写错的后果是模型跳过登录直接调接口，或把「凭证仍在盘上」报成「已登出」。
 现在每个失败分支只在它所属的操作小节出现一次。新增分支时**不要**再建汇总清单，直接加到对应小节的表里。
 
 ## 8. 修改 auth.md 时
 
-- 它是鉴权规则的单一事实来源，`ats` 与 `people` 共用一份；改动必须评估两侧影响，并按 AGENT.md §9 在 commit message 里显式说明影响面。
+- 鉴权规则只手写在 `references/foundation/auth.md`，但 **`ats` 与 `people` 各有一份、不共用一个文件**（安装器只平铺 `skills/<name>/`，跨 skill 相对引用会断链，见 AGENT.md §2.1）。
+  两份都是最终文档，规则类改动**必须两侧同步落地**：只改一侧的后果不是排版不一致，而是一侧写着「凭证仍在盘上」、另一侧写着「已登出」。
+  改完按 AGENT.md §9 在 commit message 里显式说明影响面并列出两侧文件 —— 只列一侧通常意味着漏改。
+- `cllmk curl` 的命令用法与 `--filter` 语法**不在 `skills/` 的任何文件里**（见 §9）。auth.md 只保留 curl 与鉴权耦合的三条约束，
+  且都已并进正文而不再单独成节：curl 前必须过前置鉴权检查、401/403 必须先跑裸 `auth status` 复验（Step 5 表最后一行）、
+  `Request failed` 走「受限执行环境的网络重试」。不要因为「curl 也要鉴权」就把手册内容写回来，也不要新建 `foundation/curl.md`。
+- **current 租户的细节不在 auth.md**，在同目录 `tenant-switch.md`（背景见 `doc/tenant-switch.md`，本文 §10、§12 记录了两轮移出经过）。
+  auth.md 只在「命令一览」末尾留一段：业务只用 current、logout 是唯一例外、跨租户串行、其余以 `tenant-switch.md` 为准。
 - 外部文档按**章节名**引用它：「登录流程」和「受限执行环境的网络重试」被多个 operations 文档直接点名，改名会让引用悬空。
+- 「前置鉴权检查」的 **Step 编号也是被外部按名引用的**：`tenant-switch.md`（两侧）指向 Step 1，`doc/curl.md` 指向 Step 5。
+  编号原本是 Step 0 / 0.5 / 1 / 2 / 3（0.5 是后来插进去的），已在 6.0.0 一并改为连续的 Step 1–5，
+  同时把 `hc-field-manage.md` / `job-field-manage.md` 里镜像的那份编号改成序号 + 章节名引用 —— 那两处本是 AGENT.md §8
+  「在 operations 里复制鉴权步骤」的残留，挂着 SKILL.md「业务公共前置」的名却用 auth.md 的编号，会随 auth.md 每次调整一起漂移。
+  **再动编号时必须同步这几处**，或者干脆改用章节名引用。
 - 安全红线（AGENT.md §5）在本文件里必须保持禁止语气（「禁止」「一律不允许」「停止写入」）。改写成「不在本 skill 覆盖范围」这类边界表述会让模型从「停下来问用户」变成「自己猜一个」。
+
+## 9. curl 手册为什么不在 skill 内
+
+`auth.md` 曾经装着 `cllmk curl` 的完整用法（命令签名、`--filter` 语法、失败全表）。
+中途它被拆成过 `foundation/curl.md`（两侧各一份），随后又整体移到 `doc/curl.md`。两次调整的判据不同，都记在 `doc/curl.md` §6，这里只说结论：
+
+**手册不在 `skills/` 内，因为它不会被读到。** 加载纪律下一次业务任务只读「业务公共前置 + 一个 operations 主文档」。
+一份通用手册要么永远没人打开，要么得在每份业务文档里加一句跳转 —— 后者等于把维护成本乘以业务数量，换一个本来可以内联两行解决的问题。
+
+现在的落点是三处，缺一不可：
+
+| 内容 | 落点 |
+|---|---|
+| 命令怎么写、payload、业务成功码 | 各 `operations/` 主文档，直接写出完整可执行的 `cllmk curl ...` |
+| `--filter` 的数组下标陷阱 | 用到数组下标的**那一份**业务文档，内联 2–3 行 |
+| 响应不得无关展开、大响应先 `--filter` | 两个 `SKILL.md` 的「全局安全规则」（对所有业务路由成立） |
+| curl 的鉴权前置与 401/403 复验 | `foundation/auth.md` 的 Step 5 分支表（最后一行）与该表表尾一句 |
+
+写业务文档时的自检在 `doc/curl.md` §5：**这条 curl 命令如果只有它自己被读到，模型能不能正确执行并正确判读失败？**
+
+## 10. 从 auth.md 移出的两节
+
+**「临时会话路由（仅鉴权诊断使用）」** —— 曾经写着「诊断时可以临时用 `--org` / `--profile` / `CLLMK_PROFILE` 指定目标」。
+它和同一份文档里的「业务只用 current」是同一件事的两种口径，而模型没有可靠办法判断自己此刻算不算「在诊断」。
+实际后果是给了一个绕过 current 验证的合法借口：用 `--org` 查通了，业务命令仍然落在 current 上，两者不是同一个租户时完全无感。
+诊断本来也不需要它 —— `switch → status` 两步就能验证任意一个已保存会话，且不留下错位状态。这一节已删除，不要以任何形式恢复。
+
+**「Agent 处理「用 XX 公司操作」的标准工作流」** —— 三步：离线定位并切换 current、裸 status 验证、进业务后不带路由参数。
+三步分别是 `tenant-switch.md` §3–§4、§5、「边界」第 3 条，逐条重复了一遍。
+「用 XX 公司操作」是一个**路由信号**，处理它的正确位置是 SKILL.md 路由表（「查看已登录公司/current、切换公司/org/profile」那一行指向 `tenant-switch.md`），
+而不是在 `auth.md` 里再抄一份流程。同理，原「切换租户 / 系统 / 环境」一节也已合并进「current 租户规则」，只留业务侧真正需要的三条判断。
+
+## 11. People 侧曾经串到 ATS 的接口
+
+people 侧 auth.md 的 curl 示例长期是 `cllmk curl --url /api/v2/org/info --method GET --filter jobFields`，
+连注释「只读取职位字段」都照抄了 ATS —— 那是 ATS 的组织信息接口，People 里根本没有「职位字段」这个概念
+（People 的 moduleId=11「招聘需求」是另一回事，people/SKILL.md 的边界表专门警告过）。模型照抄必得 404。
+
+这是两侧各存一份带来的固有风险：diff 天然不相等，机器查不出「哪一处是该差异化的、哪一处是漏改的」。
+所以 AGENT.md §6.3 把 foundation 的两侧复查列为最高敏感级别的人工项。示例已改成真实的 `POST /api/organization/hr/setting/model/list?bus=20`（`moduleId` 保留占位符，AGENT.md §5.3 不猜 payload），
+并在 `code: 0` 那一行补了「外层 `code: 0` 只代表 HTTP 通了，业务成败看内层 `code == 200`」—— 这是 People 与 ATS 最容易互相套错的一处语义。
+这个示例现在只剩 `doc/curl.md` §1 一份（作为写文档时的参考），People 的业务成功码则落在 `people/SKILL.md` 的全局安全规则里。
+
+## 12. 第二轮瘦身：又移出的四节
+
+`auth.md` 5.0.0 有 235 行、19 个章节；6.0.0 是 202 行、18 个章节。移出的四节与它们的去处如下 ——
+**每一条执行必需的约束都在 `skills/` 内留了落点，没有一条随文件离开分发范围**（AGENT.md §1）。
+
+### 「会话模型」
+
+四条 bullet 里前两条是原理（profile 怎么来的、login 为什么不覆盖别人），已在本文 §1；
+「一个 profile 只属于一个 system」压成「命令一览」上方那一句，完整表述在「其它 login 失败分支」的「system 选错」；
+「身份字段是登录时刻的快照」和**身份字段对照表**则**没有移走**。
+
+对照表留下来是 AGENT.md §2.1/§6.3 的硬要求：它是模型识别「自己拿错了会话」的唯一依据，
+删掉或按 system 拆掉等于把安全兜底删了。只是位置从文档开头挪到了 Step 5 之后（新增 `### 身份字段按 system 分组`）——
+判读 `auth status` 输出的地方才是它真正被用到的地方，放在开头模型往往在读到 Step 5 时已经滑过去了。
+同时补了一句原文没有的推论：**拿不到本 system 的身份字段就说明会话不属于本 system**，不要改用另一组字段校验。
+
+### 「current 租户规则」
+
+整节的每条硬约束在 `skills/` 内本来就有第二个落点，重复的那份删掉：
+
+| 原约束 | 现在住在哪 |
+|---|---|
+| 业务只用 current，不带 `--org` / `--profile` / `CLLMK_PROFILE` | 两个 `SKILL.md`「业务公共前置」第 2–3 步；auth.md「命令一览」末段 |
+| `logout` 是唯一例外 | 同上一句 + 「登出流程」 |
+| 目标租户无会话则 login | Step 5 的 `Not logged in` 行 |
+| 切换后 status 失败不回滚 | `tenant-switch.md` §5 |
+| 跨租户串行、收尾明示 current | 两个 `SKILL.md` + `tenant-switch.md`「边界」与「完成标准」 |
+
+节首那段「以下行为一律以 `tenant-switch.md` 为准」的清单本身就是 `tenant-switch.md` 的目录副本，属于纯冗余。
+
+### 「系统与环境」
+
+一张 system × env × Web URL 表。**模型不需要它** —— URL 由 `cllmk` 自己解析，业务命令只写路径。
+表里真正影响行为的两点已经内联：ats 的 `cn` / `intl` / `s3` 在「登录流程」的 env 那段，
+People 的 `dingding` / `test` 未配置→停止在「其它 login 失败分支」和 Step 5 的 `Unknown <system> env` 行。
+URL 与实现状态对人有用，留在本文与 `people/SKILL.md` 的「People 环境」表即可。
+
+### 「curl 与鉴权的衔接」
+
+三条 bullet：前置检查那条和 `Request failed` 那条分别与 Step 5、「受限执行环境的网络重试」重复，直接删。
+**401 / 403 复验那条在 `skills/` 内没有第二份**，所以它不是「移走」而是**换了形态**：
+成为 Step 5 分支表的最后一行（`code` 列写 `—`，因为它不是 cllmk 的返回码而是 curl 的 HTTP 状态）。
+
+放进那张表比单独成节更可靠：模型遇到 401 时正在做的事就是「查表判断下一步」，
+而独立小节要靠它记得往下翻。语义一字未减 —— 不代表凭证失效、不会清除会话、必须先跑裸 `auth status` 复验、
+403 在会话有效时是业务权限问题（报告并停止，不重新登录）。
+
+### 就地精简的三节
+
+- **Step 5 分支表**：14 行（people 13 行）→ 10 行。删掉的是 login / logout 自己的返回（`Login timeout.`、`Chrome not found.`、ats `账号角色不正确`、people `URL not configured`、`Logout failed` 的细节），
+  它们在「登录流程」「登出流程」里有完整处置；表尾补一句指回去。`Old syntax` 这类一次性提示压进表尾同一句。
+  保留的 10 行是**只有这张表才有**的判断：`0`、`Not logged in`、两种「Credentials preserved」的区别、`status endpoint not configured`、`Unknown env`、`Request failed`、switch 失败、logout 失败、curl 401/403。
+- **受限执行环境的网络重试**：7 条 → 4 条。原 1+2 合成「只读命令可重试一次」，3+4 合成「写请求只有 DNS 失败可重试」（AGENT.md §5 红线 5 的语义一字未改），
+  原 6 的「不静默扩大授权范围」并进「重试不得改参数」那条。`getaddrinfo ENOTFOUND` 不能判定为本机 DNS 异常仍在节首。
+- **登录流程**：只删「180 秒非交互机制」的展开（原理在本文 §2）。**章节名必须保持「登录流程」**——
+  `tenant-switch.md`（两侧）和 `operations/protection-period-country/index.md` 三处按名引用它。
+  「受工具管理的长运行会话」、`&` / `nohup` / `disown` / `setsid` 禁令、两段面向用户的话术、四种回退情况、
+  「超时是用户没来得及操作」、「登录后的验证」全部原样保留 —— 前四项都是别处按名引用或红线约束的对象。

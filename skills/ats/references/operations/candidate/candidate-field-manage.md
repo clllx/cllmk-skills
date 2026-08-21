@@ -57,8 +57,8 @@
 cllmk curl --url "/api/v2/org/info" --method GET --filter customBlocks
 ```
 
-本文所有 `org/info --filter ...` 调用若返回明确的 filter 路径错误，按
-`references/foundation/auth.md` 检查最小父路径；这属于本地筛选失败，不能直接解释为租户无配置。
+本文所有 `org/info --filter ...` 调用若返回明确的 filter 路径错误，属于 `--filter` 的**本地**
+筛选失败：改读最小父路径（如 `data`）确认字段是否真的存在，不能直接解释为租户无配置。
 
 从响应 `data.customBlocks[]` 中按名称模糊匹配（trim + 大小写不敏感）：
 

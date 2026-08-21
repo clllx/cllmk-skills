@@ -1,8 +1,8 @@
 ---
 name: ats
 metadata:
-  version: "1.13.0"
-description: "Moka ATS 业务的 cllmk 统一入口，覆盖候选人/申请删除、人才库移除、应聘阶段移动、候选人字段和登记表、职位与 HC 字段、Offer 字段与模块（含选项级联动、隐藏/显示）、Offer 附件模板（生成带占位符的 docx、上传、保存、电子签开关）、单 ATS 系统的职位级别（职级）增删改查与合并、职位硬删除、国家维度渠道保护期、面试评价表配置、面试题库增删改查，并在业务前按需加载安装、鉴权和 current 租户规则。用户提出上述 ATS 业务操作、相关接口路径，或要求在指定公司/org 下执行 ATS 操作时使用；只想安装或升级 `cllmk`、找不到命令，或只问登录/登出/会话过期/HTTP 401/403 时也用本 skill（规则在 `references/foundation/install.md` 与 `auth.md`，没有独立入口）；只想查看已登录公司、列出或切换 current 租户/org/profile 时也用本 skill（规则在 `references/foundation/tenant-switch.md`）。职位批量创建、跨租户迁移、简历/数据保留期限（用 `ats-resume-retention`）、Moka People 人事字段与 People 侧职位级别（用 `people`）不在本 skill 覆盖范围。"
+  version: "1.15.1"
+description: "Moka ATS 业务的 cllmk 统一入口，覆盖候选人/申请删除、人才库移除、应聘阶段移动、候选人字段和登记表、职位与 HC 字段、Offer 字段与模块（含选项级联动、隐藏/显示）、Offer 附件模板（生成带占位符的 docx、上传、保存、电子签开关）、单 ATS 系统的职位级别（职级）增删改查与合并、职位硬删除、国家维度渠道保护期、面试评价表配置、面试题库增删改查，并在业务前按需加载安装、鉴权和 current 租户规则。用户提出上述 ATS 业务操作、相关接口路径，或要求在指定公司/org 下执行 ATS 操作时使用；只想安装或升级 `cllmk`、找不到命令，或只问登录/登出/会话过期/HTTP 401/403 时也用本 skill（规则在 `references/foundation/` 的 `install.md` 与 `auth.md`，没有独立入口）；只想查看已登录公司、列出或切换 current 租户/org/profile 时也用本 skill（规则在 `references/foundation/tenant-switch.md`）。职位批量创建、跨租户迁移、简历/数据保留期限（用 `ats-resume-retention`）、Moka People 人事字段与 People 侧职位级别（用 `people`）不在本 skill 覆盖范围。"
 compatibility: "Requires the cllmk CLI for live Moka API calls; installation guidance supports macOS, Linux, and Windows PowerShell."
 ---
 
@@ -27,29 +27,33 @@ compatibility: "Requires the cllmk CLI for live Moka API calls; installation gui
 | 用户意图 | 按需读取 |
 |---|---|
 | 安装、升级、找不到 `cllmk`、确认版本 | `references/foundation/install.md` |
-| 登录、退出登录（含全部退出）、登录状态、会话过期、HTTP 401/403、curl 鉴权与失败分支 | `references/foundation/auth.md` |
+| 登录、退出登录（含全部退出）、登录状态、会话过期、HTTP 401/403 | `references/foundation/auth.md` |
 | 查看已登录公司/current、切换公司/org/profile | `references/foundation/tenant-switch.md` |
 
-这三项基础能力的完整规则都位于本 skill 内，**没有独立 skill 入口**。
+这几项基础能力的完整规则都位于本 skill 内，**没有独立 skill 入口**。
 用户单独提安装、登录、切换租户时同样进入本 skill，再按上表加载对应文档。
 
 ## ATS 业务路由
 
-| 意图或接口信号 | route | 读取 |
-|---|---|---|
-| 删除候选人主档、删除申请、`application/delete`、`application/bulk/delete` | `application-delete` | `references/operations/application-delete.md` |
-| 移动/推进候选人应聘阶段、`move-stage/v2` | `application-move-stage` | `references/operations/application-move-stage.md` |
-| 候选人字段、自定义字段、登记表/申请表/应聘表/报名表 | `candidate` | `references/operations/candidate/index.md` |
-| 招聘需求字段、HC/Headcount 字段、`hc_custom_fields` | `hc-field-manage` | `references/operations/hc-field-manage.md` |
-| 职位字段、职位自定义字段、查询 `jobFields`、`jobCustomFields/create` | `job-field-manage` | `references/operations/job-field-manage.md` |
-| 职位级别/职级的增删改查、合并职级、`jobRank/listForManage`、`jobRank/create`、`jobRank/update`、`jobRank/merge` | `job-rank-manage` | `references/operations/job-rank-manage.md` |
-| 面试评价表、评价表模板、`feedbackTemplates` | `interview-feedback-form` | `references/operations/form-config/interview-feedback-form.md` |
-| 面试题库、面试题的增删改查、`interviewQuestion/getInterviewQuestionList`、`interviewQuestion/save`、`interviewQuestion/update`、`interviewQuestion/delete` | `interview-question-bank` | `references/operations/interview-question-bank.md` |
-| 硬删除校招/社招职位、`deleteJob` | `job-delete` | `references/operations/job-delete.md` |
-| Offer 字段、Offer 自定义字段、Offer 模块/分组、Offer 字段联动、`ats-offer/customFields`、`ats-offer/customFieldGroup`、`offer-custom-field-link` | `offer-field-manage` | `references/operations/offer-field-manage.md` |
-| Offer 附件模板、录用通知函/录用通知书模板、模板里的字段占位符、电子签签署区、`office_template/offer/upload`、`ats-offer/template/save`、`getOfferTemplateById` | `offer-template-manage` | `references/operations/offer-template-manage.md` |
-| 职位级保护期方案、按国家配置/排序、`protectionPeriod` | `protection-period-country` | `references/operations/protection-period-country/index.md` |
-| 从人才库移除候选人、`talent-pool-candidates/bulk/delete` | `talent-pool-candidate-delete` | `references/operations/talent-pool-candidate-delete.md` |
+业务路由按**业务域**归组，域的排列顺序即招聘链路顺序（招聘需求 → 职位 → 候选人 → 应聘 → 面试 → Offer → 人才库 → 保护期）。
+先用业务域把意图收窄到一组，再在组内按意图信号定唯一 route。**同域的 route 不可互换** —— 例如 `job` 域下的改字段、改职级、
+硬删除职位是三件副作用完全不同的事，域匹配上了不等于 route 选对了；仍然按「加载纪律」一个任务只进一个 route。
+
+| 业务域 | 意图或接口信号 | route | 读取 |
+|---|---|---|---|
+| **hc** 招聘需求 | 招聘需求字段、HC/Headcount 字段、`hc_custom_fields` | `hc-field-manage` | `references/operations/hc-field-manage.md` |
+| **job** 职位 | 职位字段、职位自定义字段、查询 `jobFields`、`jobCustomFields/create` | `job-field-manage` | `references/operations/job-field-manage.md` |
+| **job** 职位 | 职位级别/职级的增删改查、合并职级、`jobRank/listForManage`、`jobRank/create`、`jobRank/update`、`jobRank/merge` | `job-rank-manage` | `references/operations/job-rank-manage.md` |
+| **job** 职位 | 硬删除校招/社招职位、`deleteJob` | `job-delete` | `references/operations/job-delete.md` |
+| **candidate** 候选人 | 候选人字段、自定义字段、登记表/申请表/应聘表/报名表 | `candidate` | `references/operations/candidate/index.md` |
+| **application** 应聘 | 删除候选人主档、删除申请、`application/delete`、`application/bulk/delete` | `application-delete` | `references/operations/application-delete.md` |
+| **application** 应聘 | 移动/推进候选人应聘阶段、`move-stage/v2` | `application-move-stage` | `references/operations/application-move-stage.md` |
+| **interview** 面试 | 面试评价表、评价表模板、`feedbackTemplates` | `interview-feedback-form` | `references/operations/form-config/interview-feedback-form.md` |
+| **interview** 面试 | 面试题库、面试题的增删改查、`interviewQuestion/getInterviewQuestionList`、`interviewQuestion/save`、`interviewQuestion/update`、`interviewQuestion/delete` | `interview-question-bank` | `references/operations/interview-question-bank.md` |
+| **offer** Offer | Offer 字段、Offer 自定义字段、Offer 模块/分组、Offer 字段联动、`ats-offer/customFields`、`ats-offer/customFieldGroup`、`offer-custom-field-link` | `offer-field-manage` | `references/operations/offer-field-manage.md` |
+| **offer** Offer | Offer 附件模板、录用通知函/录用通知书模板、模板里的字段占位符、电子签签署区、`office_template/offer/upload`、`ats-offer/template/save`、`getOfferTemplateById` | `offer-template-manage` | `references/operations/offer-template-manage.md` |
+| **talent-pool** 人才库 | 从人才库移除候选人、`talent-pool-candidates/bulk/delete` | `talent-pool-candidate-delete` | `references/operations/talent-pool-candidate-delete.md` |
+| **protection-period** 保护期 | 职位级保护期方案、按国家配置/排序、`protectionPeriod` | `protection-period-country` | `references/operations/protection-period-country/index.md` |
 
 ## 容易混淆的边界（指针型）
 
@@ -102,6 +106,9 @@ compatibility: "Requires the cllmk CLI for live Moka API calls; installation gui
 
 - 不输出 Cookie、认证头或凭证文件内容，不手动编辑 cllmk 的 auth/profile/current 文件。
 - 不把 cllmk 外层 `code == 0` 等同于业务成功；按所选业务文档检查内层 `data.success` 和业务码。
+- `cllmk curl` 的响应不因「不含凭证明文」就可以完整展示：优先用 `--filter`、结构化解析或业务脚本，
+  只向用户返回完成任务所需字段；候选人简历、邮箱、电话、证件信息和附件地址等敏感业务数据不得无关展开。
+- 响应体积大的接口（如 `GET /api/v2/org/info`）必须先 `--filter` 或按脚本解析，不要把整份响应读进上下文或打到终端。
 - 删除、阶段移动、保护期修改等写操作默认只预览；只有脚本显式收到 `--confirm --expected-org-id <orgId>` 且实时 current orgId 完全匹配时才允许写入。
 - 遇到未覆盖的接口形态、字段结构或保护期模式时停止写入，说明缺少的 UI curl 或业务信息，不猜测 payload。
 - **社招/校招是服务端会话状态**，不由 payload 或请求头决定，用户可能在 Web 端随时切换。涉及按

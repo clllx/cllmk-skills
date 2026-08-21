@@ -1,6 +1,6 @@
 ---
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
 description: "cllmk current 租户查询与切换规则。无参数 `cllmk auth switch` 离线列出已保存租户和持久化 current；带公司名、租户 ID 或 profile 时切换，并用裸 `cllmk auth status` 验证。不存在或匹配多个 profile 时停止，不猜测。"
 ---
 
@@ -18,7 +18,7 @@ description: "cllmk current 租户查询与切换规则。无参数 `cllmk auth 
 
 ## 1. 确认 CLI 已安装
 
-按 `auth.md` 的 Step 0 确认 `cllmk` 可执行。未安装时立即停止，不运行 `auth switch` 或 `auth status`，改按 `install.md` 引导安装。
+按 `auth.md` 的 Step 1 确认 `cllmk` 可执行。未安装时立即停止，不运行 `auth switch` 或 `auth status`，改按 `install.md` 引导安装。
 
 ## 2. 检查环境变量覆盖
 
@@ -40,7 +40,7 @@ $env:CLLMK_PROFILE
 
 - **值不合法**：所有命令都会在执行前返回 `Invalid profile name`，包括无参数列表。停止并要求用户先清除或修正环境变量，不要声称列表查询已经执行。
 - **值合法，且只做无参数列表查询**：允许继续。`cllmk auth switch` 的无参数结果读取持久化 current 指针，不受 `CLLMK_PROFILE` 影响；同时提示该环境变量存在，后续裸 `auth status` 和业务命令会被它覆盖，因此列表结果不能证明实时会话正在使用哪一个 profile。
-- **值合法，但要切换 current 或进入业务**：停止并要求用户先清除该环境变量。否则 switch 虽可更新持久化 current，后续裸 `cllmk auth status` 或业务命令仍可能路由到环境变量指定的 profile，造成验证错位。
+- **值合法，但要切换 current 或进入业务**：停止并要求用户先清除该环境变量 —— 它的优先级高于 current，会让验证通过的 profile 和实际执行的 profile 错位。
 
 ## 3. 查询租户列表
 
@@ -85,7 +85,7 @@ cllmk auth switch
 
 `--org` 和位置参数按会话所属 system 匹配身份，ATS 会话匹配 `orgId` / `orgName`。租户 ID 和公司名**合并判重** —— 命中多个 profile 时一律返回 `matches multiple profiles` 并保持 current 不变，不会因为「ID 比公司名先匹配」就替用户选一个。
 
-位置参数额外先匹配 profile 名：**profile 名优先，再匹配租户 ID / 公司名**。同一字符串同时命中 profile 和租户身份时会选择 profile；因此已知目标类型时使用对应的显式参数，避免依赖隐式优先级。不要同时传位置参数、`--org` 和 `--profile`。
+位置参数额外先匹配 profile 名：**profile 名优先，再匹配租户 ID / 公司名**。已知目标类型时用对应的显式参数，不要依赖这个隐式优先级，也不要同时传位置参数、`--org` 和 `--profile`。
 
 profile 名由 login 按 `ats-<orgId>` 自动生成，因此 profile 名本身就能看出 system。
 
@@ -104,20 +104,9 @@ cllmk auth status
 如果 status 显示过期、未登录、网络错误或在线身份与目标不一致：
 
 1. 明确报告「持久化 current 已切到 `<current>`，但实时身份验证失败」，不要误报为 current 未改变，也不要报告切换完成。
-2. 保留已切换的 current，**不自动恢复 previous** —— 自动回滚会再次改动共享状态，可能覆盖用户在并发终端里的后续选择。
-3. 停止所有业务操作，转到 `auth.md` 的对应失败分支。status 是纯查询，**任何状态码都不会删除会话文件**：401 只返回 `Session expired. Credentials preserved.` 和 `data.expired`，凭证与 current 指针都保持原样。清除凭证只能通过显式 `auth logout`。
+2. 保留已切换的 current，**不自动恢复 previous** —— current 是共享状态，回滚会二次改动它。
+3. 停止所有业务操作，转到 `auth.md` 的对应失败分支（status 是纯查询，任何状态码都不会删除会话文件，判定规则以该文档为准）。
 
-## 失败处理
-
-- `No logged-in profile matching ...`：current 保持不变；运行无参数 `cllmk auth switch` 展示可用列表，不猜测相似名称。
-- `No logged-in profile for org ...`：current 保持不变；展示列表。确认目标确实未登录后，按 `auth.md` 引导登录。
-- `No logged-in profile '...'`：指定 profile 不存在；展示列表，不自动改用其他 profile。
-- `matches multiple profiles: ...`：current 保持不变；展示返回的候选 profile，要求用户明确选择其中一个，再运行 `cllmk auth switch --profile <profile>`。
-- `Provide one switch target ...`：目标参数冲突；修正为位置参数、`--org` 或 `--profile` 之一后重试。
-- `--profile and --org are mutually exclusive`：同时提供了两个显式选择器；只保留用户明确指定的一种。
-- `Invalid profile name: ...`：`CLLMK_PROFILE` 或显式 profile 不符合名称语法；无参数列表也不会执行。要求用户清除或修正后再重试。
-- `CLLMK_PROFILE` 非空且语法合法：无参数列表可继续并提示覆盖风险；切换和业务必须等待用户清除环境变量。
-- `cllmk auth status` 失败或在线身份不一致：current 已经是新目标；保留并如实报告，不自动回滚，不执行后续业务命令，再按 `auth.md` 处理。
 
 ## 完成标准
 
