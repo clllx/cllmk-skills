@@ -7,6 +7,13 @@ runs a "rescue" pass over BIZ_NOT_IN_POOL batches at 1 ID/call to
 recover collateral misfires from the server's all-or-nothing batch
 semantics.
 
+⚠️ 中文安全提示（必读）：
+  · 本脚本默认**只预览（dry-run）**，不会真正从人才库删除任何候选人。
+  · 只有同时提供 --confirm 与 --expected-org-id <orgId>，且该 orgId 与实时
+    `cllmk auth status` 返回的 current orgId 完全一致时，才会执行移除。
+  · rescue 模式从上一轮 skip.log 读 ID，必须在与原工作目录相同租户下复跑。
+  · 失败不自动重试；结果未知时必须先回读人才库，避免重复删除。
+
 Usage:
   python3 bulk_remove.py --input <xlsx|csv> [--id-column <name|index>]
                         [--workdir <dir>] [--batch-size 30] [--interval 2.0]

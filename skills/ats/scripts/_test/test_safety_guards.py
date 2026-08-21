@@ -9,8 +9,11 @@ import unittest
 from pathlib import Path
 
 
-SCRIPTS_DIR = Path(__file__).resolve().parent
-SKILL_DIR = SCRIPTS_DIR.parent
+# 本文件位于 skills/ats/scripts/_test/，被测业务脚本在上一级 scripts/ 的各路由目录下。
+# 注意：这三个常量必须跟着文件位置一起改，否则所有 subprocess 调用都会 FileNotFoundError。
+TEST_DIR = Path(__file__).resolve().parent          # skills/ats/scripts/_test
+SCRIPTS_DIR = TEST_DIR.parent                        # skills/ats/scripts
+SKILL_DIR = SCRIPTS_DIR.parent                       # skills/ats
 SCRIPTS = {
     "application-delete": SCRIPTS_DIR / "application-delete" / "bulk_delete.py",
     "application-move-stage": SCRIPTS_DIR / "application-move-stage" / "bulk_move.py",

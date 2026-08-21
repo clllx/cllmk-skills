@@ -6,6 +6,13 @@ classifies failures without retrying result-unknown network errors, writes repor
 
 Default is preview-only; pass --confirm to actually delete (hard delete, irreversible).
 
+⚠️ 中文安全提示（必读）：
+  · 本脚本默认**只预览（dry-run）**，不会真正删除任何数据。
+  · 只有同时提供 --confirm 与 --expected-org-id <orgId>，且该 orgId 与实时
+    `cllmk auth status` 返回的 current orgId 完全一致时，才会执行删除。
+  · 本操作是**不可逆硬删除**，职位下必须没有招聘中候选人。
+  · 失败不自动重试；结果未知时必须先用查询接口回读，避免重复写入。
+
 Usage:
   python3 bulk_delete.py --input <xlsx|csv> [--id-column <name|index>]
                         [--workdir <dir>] [--interval 1.5]

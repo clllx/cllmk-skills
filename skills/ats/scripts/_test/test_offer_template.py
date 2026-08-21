@@ -7,7 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
+TEST_DIR = Path(__file__).resolve().parent
+# 业务脚本位于同级 _test/ 旁的业务目录里
+SCRIPT_DIR = TEST_DIR.parent / "offer-template"
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from placeholder_spec import (  # noqa: E402

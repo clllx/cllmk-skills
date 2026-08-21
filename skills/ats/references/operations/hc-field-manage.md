@@ -4,7 +4,9 @@ route: hc-field-manage
 
 # 招聘需求自定义字段管理（ATS-JC HC 接口）
 
-本路由 通过自然语言在 Moka ATS 中**创建**或**更新**招聘需求（Headcount/HC）自定义字段，使用 `cllmk curl` 调用 `/api/outer/ats-jc/headcount/hc_custom_fields/create` 与 `/update` 接口。
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
+
+本路由通过自然语言在 Moka ATS 中**创建**或**更新**招聘需求（Headcount/HC）自定义字段，使用 `cllmk curl` 调用 `/api/outer/ats-jc/headcount/hc_custom_fields/create` 与 `/update` 接口。
 
 ## 目录
 
@@ -17,7 +19,7 @@ route: hc-field-manage
 
 > **与其他字段 skill 的区别**：
 > - `cllmk` 的 `job-field-manage` 路由处理**职位**自定义字段（`/job/jobCustomFields/create`），结构含 14 语种 locale 和 cascade 类型
-> - 本路由 处理**招聘需求（HC）**字段，结构更简单：`supplementaryLocales: null`、`multiDetail` 仅 zh-CN、无 cascade 类型、含 number_info 和 person_select_info
+> - 本路由处理**招聘需求（HC）**字段，结构更简单：`supplementaryLocales: null`、`multiDetail` 仅 zh-CN、无 cascade 类型、含 number_info 和 person_select_info
 > - 两个 skill 对应的是前端不同页面的不同接口，**不可替代**
 
 ---

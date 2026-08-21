@@ -4,10 +4,7 @@ route: application-delete
 
 # Moka ATS 删除候选人 / 申请
 
-## 前置鉴权
-
-执行任何子流程前，按 `<skill-dir>/SKILL.md` 的「业务公共前置」完成
-安装确认 → `cllmk auth status` → 登录引导，确认 `data.system === "ats"`。
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
 
 ## 拒信硬约束（务必先读）
 
@@ -148,7 +145,7 @@ E 分支会在 `<workdir>/escalate.authorization` 落盘授权审计，然后用
 - DELETE/PUT/POST 网络失败不自动重试；结果可能已经生效，必须先回读确认
 - 跨租户任务必须串行执行 `cllmk auth switch → cllmk auth status → 本租户删除任务`；同一配置目录不得并行跑不同租户，且不同租户的 workdir 必须分开
 
-## 不在本路由 覆盖
+## 不在本路由覆盖范围
 
 | 需求 | 应使用 |
 |---|---|

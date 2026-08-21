@@ -4,13 +4,13 @@ route: interview-feedback-form
 
 # ATS 面试评价表配置
 
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
+
 通过 `cllmk curl` 管理 Moka ATS 的**面试评价表模板**：导出、比对、创建、更新、删除。
 
 > URL 前缀：`/api/outer/ats-interview/interview/feedbackTemplates/*`
 >
 > 设置页：`https://<host>/settings/interview_feedback_form`
->
-> 鉴权：先执行 `<skill-dir>/SKILL.md` 的「业务公共前置」
 
 ## 目录
 

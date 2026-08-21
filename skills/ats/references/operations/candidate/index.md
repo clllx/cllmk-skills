@@ -4,11 +4,7 @@ route: candidate
 
 # ATS 候选人信息管理
 
-## 前置鉴权
-
-在执行任何子场景前，按 `<skill-dir>/SKILL.md` 的「业务公共前置」完成鉴权
-（安装确认 → `cllmk auth status` → 登录引导），
-确认 `data.system === "ats"` 后再进入子场景路由。
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
 
 ## 系统入口
 
@@ -42,11 +38,11 @@ route: candidate
 > `form-template.md` 执行过程中若识别出系统缺少的字段，
 > 将按需加载同目录的 `candidate-field-manage.md` 完成字段创建后继续。
 
-## 不在本路由 范围内
+## 不在本路由覆盖范围
 
 | 需求 | 应使用 |
 |------|-------|
 | 招聘需求（HC / Headcount）字段 | `cllmk` 的 `hc-field-manage` 路由 |
 | 职位自定义字段 | `cllmk` 的 `job-field-manage` 路由 |
-| Offer 字段 | 待建 |
-| 候选人字段权限管理 | 待建（未来扩展） |
+| Offer 字段 | 使用 `offer-field-manage` 路由 |
+| 候选人字段权限管理 | 不在本 skill 覆盖范围 |

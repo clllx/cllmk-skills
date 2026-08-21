@@ -6,6 +6,14 @@ PUT /api/outer/ats-pipeline/stage/application/move-stage/v2 one row at a time
 (the endpoint has no bulk variant). Classifies failures without retrying
 result-unknown network errors, and supports resume-from-crash via state.json.
 
+⚠️ 中文安全提示（必读）：
+  · 本脚本默认**只预览（dry-run）**，不会真正移动任何应聘阶段。
+  · 只有同时提供 --confirm 与 --expected-org-id <orgId>，且该 orgId 与实时
+    `cllmk auth status` 返回的 current orgId 完全一致时，才会执行移动。
+  · stageId 是**租户级**标识，不同 org 的同名 stage 的 stageId 完全不同；
+    执行前必须先把 `data.orgId` / `data.env` 明示给用户对齐。
+  · 失败不自动重试；结果未知时必须先回读应聘当前阶段，避免重复移动。
+
 Usage:
   python3 bulk_move.py --input <xlsx|csv>
                        [--app-col <name|idx>] [--from-col <name|idx>] [--to-col <name|idx>]

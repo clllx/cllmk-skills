@@ -4,6 +4,8 @@ route: offer-field-manage
 
 # Offer 字段与模块管理
 
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
+
 覆盖 Moka ATS「设置 → Offer 自定义字段」（`/settings/offer_custom_field`）下的
 Offer 字段查询、创建、更新、隐藏/显示，Offer 模块（分组）的查询、创建、改名，
 以及字段选项级联动关系的查询与写入。

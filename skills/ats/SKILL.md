@@ -2,7 +2,7 @@
 name: ats
 metadata:
   version: "1.11.0"
-description: "Moka ATS 业务的 cllmk 统一入口，覆盖候选人/申请删除、人才库移除、应聘阶段移动、候选人字段和登记表、职位与 HC 字段、Offer 字段与模块（含选项级联动、隐藏/显示）、Offer 附件模板（生成带占位符的 docx、上传、保存、电子签开关）、单 ATS 系统的职位级别（职级）增删改查与合并、职位硬删除、国家维度渠道保护期、面试评价表配置、面试题库增删改查，并在业务前按需加载安装、鉴权和 current 租户规则。用户提出上述 ATS 业务操作、相关接口路径，或要求在指定公司/org 下执行 ATS 操作时使用；只想安装 CLI 时优先 `cllmk-install`，只问登录/会话错误时优先 `cllmk-auth`，只列出或切换租户时优先 `cllmk-tenant-switch`。职位批量创建、跨租户迁移、简历/数据保留期限（用 `ats-resume-retention`）、Moka People 人事字段与 People 侧职位级别（用 `people`）都不在本 skill 范围内。"
+description: "Moka ATS 业务的 cllmk 统一入口，覆盖候选人/申请删除、人才库移除、应聘阶段移动、候选人字段和登记表、职位与 HC 字段、Offer 字段与模块（含选项级联动、隐藏/显示）、Offer 附件模板（生成带占位符的 docx、上传、保存、电子签开关）、单 ATS 系统的职位级别（职级）增删改查与合并、职位硬删除、国家维度渠道保护期、面试评价表配置、面试题库增删改查，并在业务前按需加载安装、鉴权和 current 租户规则。用户提出上述 ATS 业务操作、相关接口路径，或要求在指定公司/org 下执行 ATS 操作时使用；只想安装 CLI 时优先 `cllmk-install`，只问登录/会话错误时优先 `cllmk-auth`，只列出或切换租户时优先 `cllmk-tenant-switch`。职位批量创建、跨租户迁移、简历/数据保留期限（用 `ats-resume-retention`）、Moka People 人事字段与 People 侧职位级别（用 `people`）不在本 skill 覆盖范围。"
 compatibility: "Requires the cllmk CLI for live Moka API calls; installation guidance supports macOS, Linux, and Windows PowerShell."
 ---
 
@@ -50,37 +50,39 @@ compatibility: "Requires the cllmk CLI for live Moka API calls; installation gui
 | 职位级保护期方案、按国家配置/排序、`protectionPeriod` | `protection-period-country` | `references/operations/protection-period-country/index.md` |
 | 从人才库移除候选人、`talent-pool-candidates/bulk/delete` | `talent-pool-candidate-delete` | `references/operations/talent-pool-candidate-delete.md` |
 
-## 容易混淆的边界
+## 容易混淆的边界（指针型）
+
+下表只做**路由转向**。业务细节（类型映射、参数语义、坑）一律在对应 reference 主文档里，不要在这里展开。
 
 | 用户表达 | 正确路由 |
 |---|---|
-| 「员工字段」「人事字段」「员工信息设置」「档案分类/分组」 | **People 人事系统**，使用 `people` skill，不是本 skill |
-| 「字段」但未说明系统 | 停下询问是招聘（ATS，本 skill）还是人事（People，`people` skill）；两系统都有「字段」概念，接口路径、成功码与数据模型完全不同 |
-| 「从人才库拿掉」 | `talent-pool-candidate-delete`，不是候选人/申请删除 |
-| 「删除申请」或「删除候选人主档」 | `application-delete`，必须让用户显式确认删除类型 |
-| 「关闭/暂停/归档职位」 | 当前不覆盖；`job-delete` 只做不可逆硬删除 |
-| 「批量创建/导入/迁移职位」或 `create-job` | 当前不覆盖；不要调用本 skill 内的脚本或猜测客户映射 |
-| 「删除/修改职位字段」 | `job-field-manage` 说明当前不覆盖并停止写入；不要路由到职位硬删除或猜测接口 |
-| 「阶段模板 CRUD / 新增 stage」 | 当前不覆盖；`application-move-stage` 只移动应聘 |
-| 「满意度评价表」「人才评价表」「简历筛选评价表」「试工反馈」 | 当前不覆盖；`interview-feedback-form` 只做面试评价表，接口与数据模型都不同 |
-| 「评价表绑定到职位/面试轮次」 | 当前不覆盖；`interview-feedback-form` 只管模板本体，会显式提示用户手工绑定 |
-| 「面试题」「题库」 | `interview-question-bank`（题库本体的增删改查）；`interview-feedback-form` 只管评价表模板并**引用**题库 ID |
-| 「校招的面试题库」 | 不存在这个东西。**面试题库不分社招/校招，两场景共用一组题目**；而**面试评价表分场景**（每张表带 `hireMode`）。别为两个场景各备一份题目，也别拿题库当理由跳过评价表的 hireMode 探测 |
-| 「把面试题加到评价表里」「评价表关联题库」 | 关联字段 `feedbackQuestion` 属于 `interview-feedback-form`（§4.4）；题目本体属于 `interview-question-bank`。两步分属两个路由，本 skill 不自动串联。关联时必须同时写 `subjects[].relatedQuestion:true` 与 `feedbackQuestion` 条目 |
-| 「面试结果规则」「面试评价选项」的增改 | 当前不覆盖；`interview-feedback-form` 只读取它们做 ID 映射 |
-| 「简历/数据保留期限」 | 不在本仓库整合范围，使用独立的 `ats-resume-retention` |
-| 「标准全局保护期」或「按部门保护期」 | 当前不覆盖；国家保护期路由只处理已开启职位级方案且按国家分组的租户 |
-| 「职级」「职位级别」但未说明系统 | 停下询问是招聘（ATS，`job-rank-manage`）还是人事（People，`people` skill）。**`job-rank-manage` 仅适用于单 ATS 系统**；若职级是 People 侧人事主数据下发到招聘侧，禁止用 ATS 接口写入 |
-| 「职位级别」但指的是渠道保护期方案的配置维度 | `protection-period-country`，不是 `job-rank-manage`；两者只是名字撞车 |
-| 「删除职级」 | `job-rank-manage`；该接口**没有 delete**，只能 `merge` 合并到另一个职级，不可逆，必须先确认源职级上挂了哪些职位 |
-| 「删除 Offer 字段」「停用 Offer 字段」 | `offer-field-manage`；该接口**既没有 delete 也没有停用**，只能隐藏（`isVisible:false`），必须让用户确认是否接受隐藏 |
-| 「Offer 字段要多选」 | `offer-field-manage` 说明**产品不支持多选 Offer 自定义字段**，UI 只有单选「选择题」；不要猜 type |
-| 「Offer 模板」 | 停下区分：**Offer 附件模板**（录用通知函 docx，发给候选人的附件）→ `offer-template-manage`；Offer **字段**的模块/分组 → `offer-field-manage`；Offer 邮件模板或审批模板 → 当前不覆盖。三者接口族完全不同 |
-| 「Offer 附件模板」但要在线编辑型 | `offer-template-manage` 只覆盖**上传型**（docx）。在线编辑型（`draftTemplate`，draft-js 富文本）的新建与编辑缺 curl，会停止并要求用户提供 |
-| 「模板里的字段用不了」「占位符没被替换」 | `offer-template-manage` §4；`upload` 的 `occurrences` **不校验有效性**，漏 `[字段id]`、字段名空格未写成 `%20`、占位符被 Word 拆 run 都会「上传成功但不替换」，必须用 `validate_placeholders.py` 本地校验 |
-| 「改一下 Offer 附件模板」 | `offer-template-manage`；先问清改哪部分。**只改名字**用 `template/updateName`（§6.5，ID 不变）；换文件/改标题/改部门/开电子签才走 `template/save`（§6.3），那是**版本化替换**——保存后模板 ID 会变、旧 ID 立即失效，必须按模板名重查 ID 并向用户明示 |
-| 「校招的 Offer 附件模板」 | `offer-template-manage` §1.2。**校招模板是完全独立的一套**，社招会话下看不到也建不了。除顶层 `hireMode` 外，`upload` 表单与 `officeTemplate.type` 也要跟着变（社招 1 / 校招 2），且**服务端不校验该值**，传错不报错 |
-| 「字段」但未说明是候选人还是 Offer | 停下询问。两者接口路径、`type` 枚举、序列化方式完全不同：候选人侧 `detail`/`codes`/`supplementaryLocales` 是 **stringified 字符串**，Offer 侧是**原生 JSON**；候选人侧 type 是字符串（`select_info`），Offer 侧是数字（`6`） |
+| 「员工字段」「人事字段」「员工信息设置」「档案分类/分组」 | **People**，使用 `people` skill，不在本 skill |
+| 「字段」但未说明系统 | 停下询问是招聘（ATS）还是人事（People），两系统字段模型完全不同 |
+| 「从人才库拿掉」 | `talent-pool-candidate-delete` |
+| 「删除申请」/「删除候选人主档」 | `application-delete`，必须让用户显式确认删除类型 |
+| 「关闭/暂停/归档职位」 | 不在本 skill 覆盖范围；`job-delete` 只做不可逆硬删除 |
+| 「批量创建/导入/迁移职位」、「create-job」 | 不在本 skill 覆盖范围；不要调用本 skill 内的脚本或猜测客户映射 |
+| 「删除/修改职位字段」 | `job-field-manage`（该文档说明不在覆盖范围并**停止写入**，不要猜 endpoint） |
+| 「阶段模板 CRUD / 新增 stage」 | 不在本 skill 覆盖范围；`application-move-stage` 只移动应聘 |
+| 「满意度/人才/简历筛选/试工反馈 评价表」 | 不在本 skill 覆盖范围；`interview-feedback-form` 只做面试评价表 |
+| 「评价表绑定到职位/面试轮次」 | 不在本 skill 覆盖范围；`interview-feedback-form` 只管模板本体，需提示用户手工绑定 |
+| 「面试题」「题库」 | `interview-question-bank` |
+| 「评价表关联题库」 | 关联字段在 `interview-feedback-form`，题目本体在 `interview-question-bank` |
+| 「校招的面试题库」 | 不存在这个概念：题库**不分**社招/校招（`interview-question-bank`）；分场景的是评价表（`interview-feedback-form`，每张表带 `hireMode`） |
+| 「面试结果规则」「面试评价选项」增改 | 不在本 skill 覆盖范围；`interview-feedback-form` 只读取它们做 ID 映射 |
+| 「简历/数据保留期限」 | 使用独立 `ats-resume-retention` skill |
+| 「标准全局保护期」「按部门保护期」 | 不在本 skill 覆盖范围；`protection-period-country` 只处理职位级方案 + 按国家分组 |
+| 「职级」「职位级别」未说明系统 | 停下询问是招聘（`job-rank-manage`）还是人事（`people`） |
+| 「职位级别」指渠道保护期维度 | `protection-period-country`，不是 `job-rank-manage` |
+| 「删除职级」 | `job-rank-manage`（只能 `merge`，见主文档） |
+| 「删除/停用 Offer 字段」 | `offer-field-manage`（只能隐藏，见主文档） |
+| 「Offer 字段要多选」 | `offer-field-manage`（产品不支持多选，见主文档） |
+| 「Offer 模板」 | 停下区分：附件模板 → `offer-template-manage`；字段模块 → `offer-field-manage`；邮件/审批模板 → 不在本 skill 覆盖范围 |
+| 「Offer 附件模板」在线编辑型 | 不在本 skill 覆盖范围；`offer-template-manage` 只覆盖上传型（docx） |
+| 「占位符不被替换」 | `offer-template-manage`，见主文档 §4 |
+| 「改一下 Offer 附件模板」 | `offer-template-manage`，仅改名字 → `template/updateName`；换文件 → `template/save`（版本化，见主文档 §6） |
+| 「校招的 Offer 附件模板」 | `offer-template-manage`，见主文档 §1.2 |
+| 「字段」未说明候选人还是 Offer | 停下询问；两者 type 枚举与序列化方式完全不同（见各自主文档） |
 
 ## 业务公共前置
 

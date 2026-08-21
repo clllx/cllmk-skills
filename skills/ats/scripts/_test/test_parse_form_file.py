@@ -2,7 +2,7 @@
 
 Run:
   uv run --with openpyxl --with python-docx --with pytest \
-    pytest skills/cllmk/scripts/candidate/test_parse_form_file.py -v
+    pytest skills/ats/scripts/_test/test_parse_form_file.py -v
 """
 
 from pathlib import Path
@@ -10,10 +10,16 @@ import sys
 
 import pytest
 
+# 被测脚本位于 _test/ 旁同级业务目录 `candidate/`
+_PARSE_SCRIPT_DIR = Path(__file__).resolve().parent.parent / "candidate"
+sys.path.insert(0, str(_PARSE_SCRIPT_DIR))
+
 from parse_form_file import parse
 
 
-SAMPLES = Path(__file__).resolve().parents[4] / "scripts" / "test-samples"
+# 测试样本在仓库根 scripts/test-samples 下
+REPO_ROOT = Path(__file__).resolve().parents[4]
+SAMPLES = REPO_ROOT / "scripts" / "test-samples"
 DOCX_RESUME = SAMPLES / "标准简历&信息采集.docx"
 XLSX_LIST = SAMPLES / "配置整理表 - CR Application form.xlsx"
 XLSX_LAYOUT = SAMPLES / "新员工登记表.xlsx"
@@ -389,7 +395,7 @@ def test_cli_runs_and_outputs_json(tmp_path):
     md = tmp_path / "sample.md"
     md.write_text("- 姓名 *\n- 手机号 *\n", encoding="utf-8")
 
-    script = Path(__file__).parent / "parse_form_file.py"
+    script = _PARSE_SCRIPT_DIR / "parse_form_file.py"
     result = subprocess.run(
         [sys.executable, str(script), str(md)],
         capture_output=True, text=True, timeout=10,

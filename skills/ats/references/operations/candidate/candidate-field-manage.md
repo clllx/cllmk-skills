@@ -1,8 +1,6 @@
----
-route: candidate-field-manage
----
-
 # 候选人信息字段管理
+
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
 
 ## 目录
 

@@ -4,12 +4,9 @@ route: application-move-stage
 
 # Moka ATS 批量移动应聘阶段
 
-## 前置鉴权
-
-执行任何子流程前，按 `<skill-dir>/SKILL.md` 的「业务公共前置」完成
-安装确认 → `cllmk auth status` → 登录引导，确认 `data.system === "ats"`。
-**同时把 `data.orgId` / `data.env` 明示给用户对齐**——这是本路由 的头号坑，
-不同 org 的 stageId 完全不同，跑错 org 会 100% BIZ_FAIL 或误伤。
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
+> **同时把 `data.orgId` / `data.env` 明示给用户对齐** —— 这是本路由的头号坑，
+> 不同 org 的 stageId 完全不同，跑错 org 会 100% BIZ_FAIL 或误伤。
 
 ## 接口元信息
 
@@ -44,7 +41,7 @@ route: application-move-stage
 | 🚫 业务失败 | outer `code=0 AND data.success=false`（如"阶段已被他人变更"、"应聘不存在"、"stageId 非法"） | **不重试**（是数据本身问题） |
 | 🔐 鉴权失败 | 响应含 `HTTP 401` / `HTTP 403` / `Not logged in` / `Session expired` | **立即整体停跑**（继续也白搭） |
 
-业务失败按行独立，**不存在** talent-pool 那种"整批连坐"问题，所以本路由 **不需要 rescue 模式**。
+业务失败按行独立，**不存在** talent-pool 那种"整批连坐"问题，所以本路由**不需要 rescue 模式**。
 
 ## 子场景路由
 
@@ -114,7 +111,7 @@ python3 <skill-dir>/scripts/application-move-stage/bulk_move.py \
 - `tail -F move.log | grep -E "FAIL|ABORT|DONE"` 只在异常和完成时刷屏
 - 不必每条汇报给用户，只在失败率异常（>10% 连续）或里程碑（1k/5k/完成）汇报
 
-## 不在本路由 覆盖范围
+## 不在本路由覆盖范围
 
 | 需求 | 应使用 |
 |---|---|

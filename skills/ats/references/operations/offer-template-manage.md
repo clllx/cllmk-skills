@@ -4,6 +4,8 @@ route: offer-template-manage
 
 # Offer 附件模板管理
 
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
+
 覆盖 Moka ATS「设置 → Offer 附件模板设置」（`/settings/offer_template`）下**上传型**
 Offer 附件模板的查询、创建与编辑：生成带占位符的 docx、上传解析、保存模板、回读对账，
 以及电子签开关与附件标题变量。

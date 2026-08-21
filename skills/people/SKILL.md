@@ -49,9 +49,9 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 | 「职位字段」「HC/招聘需求字段」 | **ATS**，使用 `ats` skill；注意 People 也有 moduleId=11「招聘需求」，两者不是一回事 |
 | 「员工字段」「人事字段」「员工信息设置」 | 本 skill 的 `employee-field-manage` |
 | 「字段」但未说明系统 | **停下询问**是招聘（ATS）还是人事（People）；两系统都有「字段」概念且接口完全不同 |
-| 「职级」「职位级别」 | **停下询问是哪套系统**。招聘侧（单 ATS 系统）用 `ats` skill 的 `job-rank-manage` 路由（`ats-jc/job/jobRank/*`）；People 侧职级是另一套接口与数据模型，当前本 skill **不覆盖**其增删改查，不得套用 ATS 的 jobRank 接口 |
-| 「添加分组」「档案结构设置」「联动规则」「字段排序」「删除字段」 | 当前不覆盖，见主文档的「不覆盖清单」 |
-| 「组合字段」的定义与增删（基础设置页） | 当前不覆盖；本 skill 只在创建员工字段时**引用**已有组合类型 |
+| 「职级」「职位级别」 | **停下询问是哪套系统**。招聘侧（单 ATS 系统）用 `ats` skill 的 `job-rank-manage` 路由（`ats-jc/job/jobRank/*`）；People 侧职级是另一套接口与数据模型，不在本 skill 覆盖范围，不得套用 ATS 的 jobRank 接口 |
+| 「添加分组」「档案结构设置」「联动规则」「字段排序」「删除字段」 | 不在本 skill 覆盖范围，见主文档的「不覆盖清单」 |
+| 「组合字段」的定义与增删（基础设置页） | 不在本 skill 覆盖范围；本 skill 只在创建员工字段时**引用**已有组合类型 |
 | 简历/数据保留期限 | 使用独立的 `ats-resume-retention` skill |
 
 ## 业务公共前置
@@ -65,9 +65,20 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 5. 会话是 ATS（`data.system == "ats"`）时**停止**，不要用 ATS 会话调用 People 接口。改为登录 People：
    > 当前会话是 ATS 招聘系统，本操作需要 People 人事系统。我来执行 `cllmk people pp auth login`，本机会弹出一个 Chrome 窗口，请用目标公司的账号完成登录，我接着往下做。
 
-   随后在受工具管理的长运行会话中执行该命令；ATS 会话不会被覆盖，login 后 current 指向新的 People 会话。
-6. 未登录、过期、网络错误或 HTTP 401/403 时，按 `<cllmk-dir>/references/foundation/auth.md` 对应分支处理。需要登录时由 Agent 按该文档「登录流程」执行 login，用户只在浏览器里完成认证；仅在该文档列出的四种回退情况下才把命令交还用户。
-7. 向用户展示不含凭证的目标环境与租户。写操作执行前按业务文档完成范围、影响面与确认项检查。
+   随后在受工具管理的长运行会话中执行该命令；ATS 会话不会被覆盖（仍保存在原 profile 下），但 **current 指针会移到新的 People 会话**。
+   **在自动登录前必须先记录当前 ATS profile 名**（用无参数 `cllmk auth switch` 查看 current），
+   任务完成后**默认主动 `cllmk auth switch --profile <原 ATS profile>` 切回**，
+   并向用户明示 current 的最终位置。
+
+6. **任务收尾强制规则**：只要本 skill 触发过 ATS→People 的自动登录切换，任务结束时必须：
+   - 显式切回任务开始时的 ATS profile（除非用户明确说"留在 People"）。
+   - 向用户报告「current 已从 `<原 ATS profile>` 切到 `<新 People profile>`，已切回/保留在 `<最终 profile>`」，
+     下一条命令会落在那里。
+   - 不允许无声保留 current 在 People。
+
+7. 未登录、过期、网络错误或 HTTP 401/403 时，按 `<cllmk-dir>/references/foundation/auth.md` 对应分支处理。需要登录时由 Agent 按该文档「登录流程」执行 login，用户只在浏览器里完成认证；仅在该文档列出的四种回退情况下才把命令交还用户。
+
+8. 向用户展示不含凭证的目标环境与租户。写操作执行前按业务文档完成范围、影响面与确认项检查。
 
 ### People 环境
 

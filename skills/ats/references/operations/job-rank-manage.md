@@ -4,6 +4,8 @@ route: job-rank-manage
 
 # Moka ATS 职位级别（职级）管理 — 仅单 ATS 系统
 
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
+
 本路由通过 `cllmk curl` 管理 Moka ATS 的职位级别（UI 位置：`/settings/job_rank`），覆盖四个接口：
 
 | 动作 | Method | URL |
@@ -336,9 +338,9 @@ cllmk curl --url /api/outer/ats-jc/job/jobRank/merge --method POST --payload '{
 |---|---|
 | People 人事系统的职位级别 / 职级 | `people` skill；接口与数据模型完全不同 |
 | 渠道保护期的「职位级别方案」配置 | `protection-period-country` 路由 |
-| 职级的启用 / 停用（`status` 字段语义未验证） | 当前不覆盖；不要猜测 `status` 取值去写入 |
-| `apiCode` 的用途与写入 | 当前不覆盖，语义未验证 |
-| 职级与职位的绑定关系查询 / 批量改挂 | 当前不覆盖；需要用户提供 UI 操作的 curl 才能反推 |
+| 职级的启用 / 停用（`status` 字段语义未验证） | 不在本 skill 覆盖范围；不要猜测 `status` 取值去写入 |
+| `apiCode` 的用途与写入 | 不在本 skill 覆盖范围，语义未验证 |
+| 职级与职位的绑定关系查询 / 批量改挂 | 不在本 skill 覆盖范围；需要用户提供 UI 操作的 curl 才能反推 |
 | 职级排序 / 层级树 | 当前未见相关接口；`level` 只是数值标签，不构成排序契约 |
 | 职位自定义字段 / HC 字段 | `job-field-manage` / `hc-field-manage` 路由 |
 

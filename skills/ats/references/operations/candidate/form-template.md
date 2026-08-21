@@ -1,8 +1,6 @@
----
-route: form-template
----
-
 # 候选人登记表模板创建
+
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
 
 ## 目录
 

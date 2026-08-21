@@ -7,6 +7,13 @@ Reads applicationIds from xlsx/csv or --ids, batches them, calls
 --type is required (application | candidate); no default, refuses to run without it.
 refuseMail.send is hardcoded false and cannot be overridden via CLI.
 
+⚠️ 中文安全提示（必读）：
+  · 本脚本默认**只预览（dry-run）**，不会真正删除任何数据。
+  · 只有同时提供 --confirm 与 --expected-org-id <orgId>，且该 orgId 与实时
+    `cllmk auth status` 返回的 current orgId 完全一致时，才会执行删除。
+  · 删除不可逆；refuseMail.send 硬编码为 false，本通道绝不发送拒信。
+  · 写在脚本里的所有「客户默认」都不存在；任何参数都必须来自用户 / 业务文档。
+
 Usage:
   python3 bulk_delete.py --type application --ids 810211925
   python3 bulk_delete.py --type application --input <xlsx|csv> [--id-column A]

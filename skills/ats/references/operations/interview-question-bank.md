@@ -4,6 +4,8 @@ route: interview-question-bank
 
 # Moka ATS 面试题库管理（Interview Question Bank）
 
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
+
 本路由通过 `cllmk curl` 管理 Moka ATS 的面试题库（UI 位置：`/settings/interview_question`），覆盖四个接口：
 
 | 动作 | Method | URL（前缀 `/api/outer/ats-interview/interview/interviewQuestion/`） | payload |
@@ -391,7 +393,7 @@ cllmk curl --url /api/outer/ats-interview/interview/interviewQuestion/delete \
 | `interview/interviewQuestion/getAll` | `form-config/interview-feedback-form.md` 引用了该端点做题库 ID 映射，**本轮未验证**其 payload 与响应；不要假设它与 `getInterviewQuestionList` 同构 |
 | 面试评价表模板本体的增改 | `form-config/interview-feedback-form.md` 路由 |
 | 把题目绑定到评价表模板（`feedbackQuestion`） | `form-config/interview-feedback-form.md` 路由（§4.4）。本路由只管题库本体，**不写**任何模板侧字段 |
-| 绑定到面试轮次 / 职位 | 当前不覆盖，两个路由都不做 |
+| 绑定到面试轮次 / 职位 | 不在本 skill 覆盖范围，两个路由都不做 |
 | 清理悬空 / 孤儿关联引用 | 只能从评价表侧做，见 `form-config/interview-feedback-form.md` §4.4.2 / §4.4.4 |
 | 题目分类、标签、题型、答案与评分标准 | 实测响应中无对应字段，接口未见支持 |
 | 批量导入 / 批量删除的专用端点 | 未见；批量只能串行循环单条接口，并按上方 `222141` 规则记账 |

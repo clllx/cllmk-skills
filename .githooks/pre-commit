@@ -1,0 +1,61 @@
+#!/usr/bin/env sh
+# cllmk-skills 仓库 pre-commit hook
+#
+# 分两类守卫，缺一不可：
+#   1. 文档约定守卫（lint）—— 保证路由表、callout、术语、frontmatter 不漂移
+#   2. 业务安全守卫（测试）—— 保证 AGENT.md §5 红线（默认只预览、不猜 payload、
+#      不自动重试写请求）在脚本层面仍然成立
+#
+# 历史教训：本 hook 曾只跑 lint。结果 test_safety_guards.py 被移动目录后，
+# 44 条安全断言全部 FileNotFoundError 而没有任何人察觉 —— lint 照样绿。
+# 「只校验文档、不校验守卫本身」等于把安全红线交给运气，所以测试必须一起跑。
+#
+# 安装方式（任选其一）：
+#   git config core.hooksPath .githooks
+#   或：ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
+
+set -e
+
+fail() {
+  printf '\n❌ %s\n提交被拒绝。修复后重新 git add 再提交。\n' "$1" >&2
+  exit 1
+}
+
+# ---------- 1. 文档约定 lint ----------
+echo "[pre-commit] 1/4 路由与文档约定 lint ..."
+python3 scripts/lint_skill_routes.py || fail "lint 未通过（若确认是规则误报，请改 scripts/lint_skill_routes.py 而不是绕过 hook）"
+
+# ---------- 2. lint 自身的变异测试 ----------
+# lint 是唯一的自动化约定守卫；它自己坏了会安静地放行一切，所以必须自测
+echo "[pre-commit] 2/4 lint 变异自测 ..."
+python3 scripts/test_lint_skill_routes.py -q >/dev/null 2>&1 || {
+  python3 scripts/test_lint_skill_routes.py 2>&1 | tail -30 >&2
+  fail "lint 自测未通过：lint 已无法检出它本该检出的问题"
+}
+
+# ---------- 3. 业务安全守卫（纯标准库，必须阻断） ----------
+echo "[pre-commit] 3/4 业务安全红线测试（默认只预览 / 组织校验 / 不自动重试）..."
+python3 -m unittest discover -s skills/ats/scripts/_test -p 'test_safety_guards.py' -q >/dev/null 2>&1 || {
+  python3 -m unittest discover -s skills/ats/scripts/_test -p 'test_safety_guards.py' 2>&1 | tail -40 >&2
+  fail "安全红线测试未通过（AGENT.md §5）"
+}
+
+# ---------- 4. 依赖可选的测试（缺依赖则跳过，不阻断） ----------
+# 这两个套件依赖 python-docx / pytest。开发机没装依赖不代表代码有问题，
+# 硬阻断只会逼人 --no-verify 绕过整个 hook，反而把 1–3 一起废掉。
+echo "[pre-commit] 4/4 可选依赖测试 ..."
+if python3 -c 'import docx' >/dev/null 2>&1; then
+  python3 skills/ats/scripts/_test/test_offer_template.py >/dev/null 2>&1 \
+    || fail "test_offer_template.py 未通过"
+else
+  echo "[pre-commit]   ⏭  跳过 test_offer_template.py（未安装 python-docx）"
+fi
+
+if python3 -c 'import pytest' >/dev/null 2>&1; then
+  python3 -m pytest skills/ats/scripts/_test/test_parse_form_file.py -q >/dev/null 2>&1 \
+    || fail "test_parse_form_file.py 未通过"
+else
+  echo "[pre-commit]   ⏭  跳过 test_parse_form_file.py（未安装 pytest）"
+fi
+
+echo "[pre-commit] ✅ 全部守卫通过"

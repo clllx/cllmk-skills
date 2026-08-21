@@ -4,10 +4,7 @@ route: talent-pool-candidate-delete
 
 # Moka ATS 人才库批量移除候选人
 
-## 前置鉴权
-
-执行任何子流程前，按 `<skill-dir>/SKILL.md` 的「业务公共前置」完成
-安装确认 → `cllmk auth status` → 登录引导，确认 `data.system === "ats"`。
+> ⚠️ 执行前必读：`<skill-dir>/SKILL.md` 的「业务公共前置」（Step 1–6），确认 `data.system === "ats"`。
 
 ## 接口元信息
 
@@ -125,7 +122,7 @@ python3 <skill-dir>/scripts/talent-pool-candidate-delete/bulk_remove.py \
 - 配合 `tail -F delete.log | grep -E "FAIL|EXC|DONE"` 仅在异常和完成时输出
 - 不要每批都汇报给用户，否则刷屏；只汇报失败率明显异常或重大里程碑
 
-## 不在本路由 覆盖范围
+## 不在本路由覆盖范围
 
 | 需求 | 应使用 |
 |---|---|
