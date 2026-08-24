@@ -43,19 +43,31 @@ python3 -m unittest discover -s skills/ats/scripts/_test -p 'test_safety_guards.
 # ---------- 4. 依赖可选的测试（缺依赖则跳过，不阻断） ----------
 # 这两个套件依赖 python-docx / pytest。开发机没装依赖不代表代码有问题，
 # 硬阻断只会逼人 --no-verify 绕过整个 hook，反而把 1–3 一起废掉。
+# 「可选」有两个维度，缺任一都应该跳过而不是拒绝提交：
+#   1. 第三方依赖（python-docx / pytest）没装
+#   2. 测试样本不在本地 —— scripts/test-samples/ 下的三份简历与登记表是真实
+#      HR 表单，按 AGENT.md §5 红线 6 不入库，因此任何一次干净 clone 上都没有它们
+# 早先只判断了维度 1：依赖装了但样本缺失时，test_parse_form_file.py 会 35 条全红，
+# 把一个与本次改动完全无关的环境问题变成提交阻断。
 echo "[pre-commit] 4/4 可选依赖测试 ..."
-if python3 -c 'import docx' >/dev/null 2>&1; then
-  python3 skills/ats/scripts/_test/test_offer_template.py >/dev/null 2>&1 \
-    || fail "test_offer_template.py 未通过"
-else
-  echo "[pre-commit]   ⏭  跳过 test_offer_template.py（未安装 python-docx）"
-fi
+SAMPLES_DIR="scripts/test-samples"
 
-if python3 -c 'import pytest' >/dev/null 2>&1; then
-  python3 -m pytest skills/ats/scripts/_test/test_parse_form_file.py -q >/dev/null 2>&1 \
-    || fail "test_parse_form_file.py 未通过"
+if [ ! -d "$SAMPLES_DIR" ]; then
+  echo "[pre-commit]   ⏭  跳过样本类测试（$SAMPLES_DIR 不在本地；该目录按 §5 红线 6 不入库）"
 else
-  echo "[pre-commit]   ⏭  跳过 test_parse_form_file.py（未安装 pytest）"
+  if python3 -c 'import docx' >/dev/null 2>&1; then
+    python3 skills/ats/scripts/_test/test_offer_template.py >/dev/null 2>&1 \
+      || fail "test_offer_template.py 未通过"
+  else
+    echo "[pre-commit]   ⏭  跳过 test_offer_template.py（未安装 python-docx）"
+  fi
+
+  if python3 -c 'import pytest' >/dev/null 2>&1; then
+    python3 -m pytest skills/ats/scripts/_test/test_parse_form_file.py -q >/dev/null 2>&1 \
+      || fail "test_parse_form_file.py 未通过"
+  else
+    echo "[pre-commit]   ⏭  跳过 test_parse_form_file.py（未安装 pytest）"
+  fi
 fi
 
 echo "[pre-commit] ✅ 全部守卫通过"

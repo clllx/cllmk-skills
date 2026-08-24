@@ -209,7 +209,11 @@ hook 依次跑四道守卫，任一失败即拒绝提交：
 | 1 | `scripts/lint_skill_routes.py` | 路由与文档约定（见 6.2） |
 | 2 | `scripts/test_lint_skill_routes.py` | lint 自身的变异测试 —— 每条检查都有「故意写坏必须报」的反向用例 |
 | 3 | `skills/ats/scripts/_test/test_safety_guards.py` | §5 红线在脚本层的唯一自动化守卫 |
-| 4 | `test_offer_template.py` / `test_parse_form_file.py` | 依赖 `python-docx` / `pytest`，缺依赖则跳过不阻断 |
+| 4 | `test_offer_template.py` / `test_parse_form_file.py` | 依赖 `python-docx` / `pytest`，且依赖 `scripts/test-samples/` 下的真实 HR 表单样本；**依赖或样本任一缺失都跳过不阻断** |
+
+`scripts/test-samples/` 下是三份真实简历与登记表，不入库，
+所以干净 clone 上守卫 4 必然无样本可跑 —— 跳过是预期行为，不是守卫失效。
+需要跑它时自行把样本放到该目录下。
 
 **两侧 foundation 是否同步，机器查不到**：两份都是手写的最终文档，正文按 system 不同，
 diff 天然不相等，没有可自动比对的基线。这一条只能靠 §6.3 的人工复查兜住。
