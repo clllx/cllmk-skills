@@ -148,6 +148,37 @@ class LintMutationTests(unittest.TestCase):
             "# 没有 frontmatter 的主文档\n", encoding="utf-8")
         self.assert_fails_with("缺少 route: 且未登记")
 
+    # ---------- §5 红线 6：文档不得落盘真实人员 / 公司信息 ----------
+    # 四种形态各来一条：它们都是「复制 curl 时连带粘进来」的产物，
+    # 只测其中一种会让另外三条正则悄悄写错也没人发现。
+    def _append_to_doc(self, text: str) -> None:
+        f = self.p("skills/ats/references/operations/job-delete.md")
+        f.write_text(f.read_text(encoding="utf-8") + text, encoding="utf-8")
+
+    def test_detects_real_email_in_doc(self) -> None:
+        self._append_to_doc("\n响应里的 userEmail 是 zhangsan@somecorp.cn。\n")
+        self.assert_fails_with("疑似真实邮箱")
+
+    def test_allows_placeholder_email(self) -> None:
+        self._append_to_doc("\n样例邮箱一律写 someone@example.com。\n")
+        self.assertEqual(self.run_lint().returncode, 0, "example.com 是允许的占位域名")
+
+    def test_detects_real_mobile_in_doc(self) -> None:
+        self._append_to_doc("\n联系人手机号 13912345678。\n")
+        self.assert_fails_with("疑似真实手机号")
+
+    def test_detects_real_idcard_in_doc(self) -> None:
+        self._append_to_doc("\n证件号 11010119900307341X。\n")
+        self.assert_fails_with("疑似真实身份证号")
+
+    def test_detects_identity_field_with_real_value(self) -> None:
+        self._append_to_doc('\n```\n{"corpName":"某某科技有限公司"}\n```\n')
+        self.assert_fails_with("身份字段带真实值")
+
+    def test_allows_identity_field_with_placeholder(self) -> None:
+        self._append_to_doc('\n```\n{"corpName":"<corpName>"}\n```\n')
+        self.assertEqual(self.run_lint().returncode, 0, "占位符形态应放行")
+
     # ---------- WARNING 档：不阻断，但 --strict 下要能提升 ----------
     def test_quote_violation_is_warning_not_error(self) -> None:
         f = self.p("skills/ats/references/operations/job-delete.md")

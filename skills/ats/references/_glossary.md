@@ -39,6 +39,7 @@
 | 标准字段 | **标准字段** / **standard field** | Moka 预置的字段池 |
 | 自定义字段 | **自定义字段** / **custom field** | 租户自己加的字段 |
 | 字段模块 | **字段模块** / **字段分组** / **customBlock** / **model** | 字段的容器，候选侧叫 customBlock，People 侧叫 model |
+| 人员字段 | **人员**（People 字段类型 17） | People 员工档案里选择员工的字段类型。页面名称就叫「人员」，不要写成「员工选择器」或「选人字段」 |
 | 字段类型 | **字段类型** / **type** | ATS 候选人字段是字符串（`select_info`），Offer 字段是数字（`6`），People 是 code |
 | 占位符 | **占位符** / **placeholder** | Offer 附件模板里 `[字段id]` 形式的占位标记 |
 | 电子签 | **电子签** / **e-sign** | 模板上的电子签名区块 |

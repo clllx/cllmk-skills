@@ -38,6 +38,19 @@ CJK = r"一-鿿"
 _CJK_DOUBLE_QUOTE = re.compile(rf'"[^"\n]*[{CJK}][^"\n]*"')
 _SCRIPT_REF = re.compile(r"<skill-dir>/(scripts/[A-Za-z0-9_\-/]+\.py)")
 
+# §5 红线 6：仓库文档不得落盘真实的人员 / 公司信息。
+# 抓 curl 时最容易连带贴进来的四种形态：邮箱、手机号、身份证号，
+# 以及埋点 / 会话响应里带真实值的身份字段（`"userName":"张三"`）。
+_PII_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_PII_EMAIL_OK = re.compile(r"@(example\.(com|org|net)|xxx|<)", re.I)
+_PII_MOBILE = re.compile(r"(?<![0-9])1[3-9][0-9]{9}(?![0-9])")
+_PII_IDCARD = re.compile(r"(?<![0-9])[0-9]{17}[0-9Xx](?![0-9])")
+_PII_NAMED = re.compile(
+    r'"(userName|userEmail|realname|corpName|orgName|mobile|phone)"\s*:\s*"([^"]{1,64})"'
+)
+# 占位符是合法写法：`<公司名>` / `{corpName}` / `xxx` / `***` / 空串
+_PII_PLACEHOLDER = re.compile(r"^(<.*>|\{.*\}|x+|\*+|)$", re.I)
+
 
 class Report:
     """收集 ERROR / WARNING 两档结果。"""
@@ -301,7 +314,28 @@ def main() -> int:
             if not (skill_dir / m.group(1)).exists():
                 report.error(f"[引用脚本不存在] {rel(doc)} → {m.group(1)}")
 
-    # ---------- 校验 10（WARNING）：中文内容用了英文双引号（§4.2） ----------
+    # ---------- 校验 10：文档不得落盘真实人员 / 公司信息（§5 红线 6） ----------
+    # 为什么必须机器查：这些值几乎总是随「从浏览器复制 curl」一起被粘进来的，
+    # 写文档的人盯着 payload 结构，不会注意 cookie 之外还有埋点里的姓名和邮箱。
+    for doc in sorted(SKILLS_DIR.rglob("*.md")) + sorted(SKILLS_DIR.rglob("*.py")):
+        for i, line in enumerate(
+            doc.read_text(encoding="utf-8", errors="replace").split("\n"), 1
+        ):
+            for m in _PII_EMAIL.finditer(line):
+                if not _PII_EMAIL_OK.search(m.group(0)):
+                    report.error(f"[疑似真实邮箱] {rel(doc)}:{i} {m.group(0)}")
+            for m in _PII_MOBILE.finditer(line):
+                report.error(f"[疑似真实手机号] {rel(doc)}:{i} {m.group(0)}")
+            for m in _PII_IDCARD.finditer(line):
+                report.error(f"[疑似真实身份证号] {rel(doc)}:{i} {m.group(0)}")
+            for m in _PII_NAMED.finditer(line):
+                if not _PII_PLACEHOLDER.match(m.group(2).strip()):
+                    report.error(
+                        f"[身份字段带真实值] {rel(doc)}:{i} {m.group(0)[:60]} —— "
+                        f"改成占位符（`<{m.group(1)}>`）"
+                    )
+
+    # ---------- 校验 11（WARNING）：中文内容用了英文双引号（§4.2） ----------
     # 历史债较多且服务端返回字面量属于灰区（更应该用 `code` 包裹），故不阻断提交
     for doc in ref_files + sorted(SKILLS_DIR.glob("*/SKILL.md")):
         if doc.name in _SPEC_FILES:
