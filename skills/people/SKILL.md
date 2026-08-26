@@ -1,8 +1,8 @@
 ---
 name: people
 metadata:
-  version: "1.5.0"
-description: "Moka People 人事系统的 cllmk 统一操作入口。当前覆盖「人事设置 → 员工信息设置」的分组与字段管理：查询档案分类/分组/字段；创建自定义分组、给分组改名、停用与启用分组；创建自定义字段（含「人员」类型）、编辑字段、停用与启用字段。用户提到 Moka People、人事系统、员工信息设置、员工字段、人事字段、档案分类、字段分组、添加分组、分组改名、停用分组、core.mokahr.com，或 `model/list`、`model/add`、`model/edit`、`model/enable`、`model/disable`、`field/add`、`field/edit`、`field/detail`、`field/enable`、`field/disable`、`combinedField/list` 等接口时使用本 skill。ATS 招聘侧的候选人字段、登记表、职位与 HC 字段属于 `ats` skill，不要路由到这里。只问 `cllmk` 安装升级、登录登出、会话过期、查看或切换已登录公司时也用本 skill（规则在 `references/foundation/`，没有独立入口）。先按路由表选择唯一业务文档，再按需加载参考，禁止一次性读取全部 references。"
+  version: "1.6.0"
+description: "Moka People 人事系统的 cllmk 统一操作入口。当前覆盖两块设置：（一）人事设置 → 员工信息设置的分组与字段管理：查询档案分类/分组/字段；创建自定义分组、给分组改名、停用与启用分组；创建自定义字段（含「人员」类型）、编辑字段、停用与启用字段。（二）组织设置 → 部门信息设置的字段管理：部门信息与组织职责两个 Tab 的字段查询、创建、编辑、停用与启用。用户提到 Moka People、人事系统、员工信息设置、员工字段、人事字段、档案分类、字段分组、添加分组、分组改名、停用分组、部门字段、部门信息设置、组织职责、部门职责、分管负责人、core.mokahr.com，或 `model/list`、`model/add`、`model/edit`、`model/enable`、`model/disable`、`field/add`、`field/edit`、`field/detail`、`field/enable`、`field/disable`、`combinedField/list` 等接口时使用本 skill。ATS 招聘侧的候选人字段、登记表、职位与 HC 字段属于 `ats` skill，不要路由到这里。只问 `cllmk` 安装升级、登录登出、会话过期、查看或切换已登录公司时也用本 skill（规则在 `references/foundation/`，没有独立入口）。先按路由表选择唯一业务文档，再按需加载参考，禁止一次性读取全部 references。"
 compatibility: "依赖 cllmk CLI 与一个 system=people 的有效会话；安装、鉴权、租户切换规则见本 skill 的 references/foundation/。"
 ---
 
@@ -38,6 +38,7 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 | 意图或接口信号 | route | 读取 |
 |---|---|---|
 | 员工信息设置、员工字段、人事字段、档案分类/分组、新增或修改员工自定义**分组**（含改名、停用、启用）、新增或修改员工自定义**字段**、停用/启用员工字段、「人员」类型字段、组合字段（证件/银行卡）在员工档案中的使用、`model/list`、`model/add`、`model/edit`、`model/enable`、`model/disable`、`field/add`、`field/edit`、`field/detail`、`field/enable`、`field/disable`、`base/combinedField/list` | `employee-field-manage` | `references/operations/employee-field-manage.md` |
+| 部门信息设置、部门字段、部门基础信息、部门属性、组织职责、部门职责、分管负责人/HRBP 这类挂在部门上的人员槽位、新增或修改部门自定义字段、停用/启用部门字段、`organization/v1/model/list`、`partManage`、`dutyManage` | `department-field-manage` | `references/operations/department-field-manage.md` |
 
 > 后续 People 业务（假勤、薪酬、组织、审批等）在此表继续追加，每个业务一份独立主文档。
 
@@ -50,7 +51,9 @@ ATS 招聘系统的业务由同级的 `ats` skill 负责；两者共用一套 CL
 | 「员工字段」「人事字段」「员工信息设置」 | 本 skill 的 `employee-field-manage` |
 | 「字段」但未说明系统 | **停下询问**是招聘（ATS）还是人事（People）；两系统都有「字段」概念且接口完全不同 |
 | 「职级」「职位级别」 | **停下询问是哪套系统**。招聘侧（单 ATS 系统）用 `ats` skill 的 `job-rank-manage` 路由（`ats-jc/job/jobRank/*`）；People 侧职级是另一套接口与数据模型，不在本 skill 覆盖范围，不得套用 ATS 的 jobRank 接口 |
-| 「添加分组」「分组改名」「停用/启用分组」 | 本 skill 的 `employee-field-manage`，见主文档 §5.8 |
+| 「添加分组」「分组改名」「停用/启用分组」 | 本 skill 的 `employee-field-manage`，见主文档 §5.8。**部门信息设置没有分组管理** |
+| 「部门字段」「部门信息设置」「组织职责」 | 本 skill 的 `department-field-manage`，不是 `employee-field-manage` |
+| 「字段」但只说了「部门」二字 | **停下询问**是部门属性（部门信息 Tab）还是挂人的职责槽位（组织职责 Tab）；两者可用类型与 payload 键集合都不同 |
 | 「删除分组」「移动分组到别的 Tab」「档案结构设置」「联动规则」「字段排序」「删除字段」 | 不在本 skill 覆盖范围，见主文档的「不覆盖清单」 |
 | 「组合字段」的定义与增删（基础设置页） | 不在本 skill 覆盖范围；本 skill 只在创建员工字段时**引用**已有组合类型 |
 | 简历/数据保留期限 | 使用独立的 `ats-resume-retention` skill |
