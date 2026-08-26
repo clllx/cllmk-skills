@@ -38,9 +38,10 @@ CJK = r"一-鿿"
 _CJK_DOUBLE_QUOTE = re.compile(rf'"[^"\n]*[{CJK}][^"\n]*"')
 _SCRIPT_REF = re.compile(r"<skill-dir>/(scripts/[A-Za-z0-9_\-/]+\.py)")
 
-# §5 红线 6：仓库文档不得落盘真实的人员 / 公司信息。
-# 抓 curl 时最容易连带贴进来的四种形态：邮箱、手机号、身份证号，
-# 以及埋点 / 会话响应里带真实值的身份字段（`"userName":"张三"`）。
+# §5 红线 6：仓库不得落盘真实的人员 / 公司信息，也不得落盘凭证。
+# 覆盖「从浏览器复制 curl 反推接口」这个动作会连带粘进来的全部形态：
+# 邮箱、手机号、身份证号、带真实值的身份字段（埋点与会话响应里都有），
+# 以及 curl 自带的 Cookie / JWT —— 红线 2 禁止输出凭证，落盘同样禁止。
 _PII_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _PII_EMAIL_OK = re.compile(r"@(example\.(com|org|net)|xxx|<)", re.I)
 _PII_MOBILE = re.compile(r"(?<![0-9])1[3-9][0-9]{9}(?![0-9])")
@@ -48,8 +49,36 @@ _PII_IDCARD = re.compile(r"(?<![0-9])[0-9]{17}[0-9Xx](?![0-9])")
 _PII_NAMED = re.compile(
     r'"(userName|userEmail|realname|corpName|orgName|mobile|phone)"\s*:\s*"([^"]{1,64})"'
 )
+_PII_JWT = re.compile(r"eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}")
+_PII_COOKIE = re.compile(r"(?i)\b(moka-jwt|moka-uid|JSESSIONID|acw_tc)\s*=")
 # 占位符是合法写法：`<公司名>` / `{corpName}` / `xxx` / `***` / 空串
 _PII_PLACEHOLDER = re.compile(r"^(<.*>|\{.*\}|x+|\*+|)$", re.I)
+
+# 扫描范围是整个仓库，不只 skills/ —— README / AGENT.md / doc/ / .githooks/ 同样会
+# 被粘进 curl。下面两个文件是 PII 检查器本身与它的反向用例，**必然**包含诱饵字符串
+# （zhangsan@… / 13912345678 / 张三），扫自己等于永远失败，故豁免。
+# 豁免范围仅此两个文件，它们不承载业务内容，改动必经评审。
+_PII_EXEMPT = {"scripts/lint_skill_routes.py", "scripts/test_lint_skill_routes.py"}
+_PII_SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
+_PII_MAX_BYTES = 2 * 1024 * 1024
+
+
+def iter_repo_text_files():
+    """遍历仓库内所有可读文本文件（用于全仓库级检查）。"""
+    for p in sorted(REPO_ROOT.rglob("*")):
+        if not p.is_file():
+            continue
+        parts = set(p.relative_to(REPO_ROOT).parts)
+        if parts & _PII_SKIP_DIRS:
+            continue
+        if rel(p) in _PII_EXEMPT:
+            continue
+        try:
+            if p.stat().st_size > _PII_MAX_BYTES:
+                continue
+            yield p, p.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
 
 
 class Report:
@@ -314,13 +343,15 @@ def main() -> int:
             if not (skill_dir / m.group(1)).exists():
                 report.error(f"[引用脚本不存在] {rel(doc)} → {m.group(1)}")
 
-    # ---------- 校验 10：文档不得落盘真实人员 / 公司信息（§5 红线 6） ----------
+    # ---------- 校验 10：不得落盘真实人员 / 公司信息与凭证（§5 红线 6） ----------
     # 为什么必须机器查：这些值几乎总是随「从浏览器复制 curl」一起被粘进来的，
-    # 写文档的人盯着 payload 结构，不会注意 cookie 之外还有埋点里的姓名和邮箱。
-    for doc in sorted(SKILLS_DIR.rglob("*.md")) + sorted(SKILLS_DIR.rglob("*.py")):
-        for i, line in enumerate(
-            doc.read_text(encoding="utf-8", errors="replace").split("\n"), 1
-        ):
+    # 写文档的人盯着 payload 结构，只记得删 Cookie，不会注意埋点里还有姓名和邮箱。
+    # 为什么扫全仓库而不只扫 skills/：README、AGENT.md、doc/ 同样会被粘进 curl，
+    # 「只有正式文档需要干净」是个错觉。
+    # 为什么不扫 git 历史：本检查在 pre-commit 拦截，脏数据进不了历史；
+    # 每次提交重扫全部 blob 只是把已验证过的内容重扫一遍，代价换不到覆盖。
+    for doc, text in iter_repo_text_files():
+        for i, line in enumerate(text.split("\n"), 1):
             for m in _PII_EMAIL.finditer(line):
                 if not _PII_EMAIL_OK.search(m.group(0)):
                     report.error(f"[疑似真实邮箱] {rel(doc)}:{i} {m.group(0)}")
@@ -334,6 +365,13 @@ def main() -> int:
                         f"[身份字段带真实值] {rel(doc)}:{i} {m.group(0)[:60]} —— "
                         f"改成占位符（`<{m.group(1)}>`）"
                     )
+            if _PII_JWT.search(line):
+                report.error(f"[落盘了 JWT] {rel(doc)}:{i} —— 凭证一律不入库（§5 红线 2）")
+            for m in _PII_COOKIE.finditer(line):
+                report.error(
+                    f"[落盘了 Cookie] {rel(doc)}:{i} {m.group(1)}= —— "
+                    f"贴 curl 前先删掉 -b/--cookie 整行"
+                )
 
     # ---------- 校验 11（WARNING）：中文内容用了英文双引号（§4.2） ----------
     # 历史债较多且服务端返回字面量属于灰区（更应该用 `code` 包裹），故不阻断提交

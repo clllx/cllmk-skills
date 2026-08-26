@@ -179,6 +179,38 @@ class LintMutationTests(unittest.TestCase):
         self._append_to_doc('\n```\n{"corpName":"<corpName>"}\n```\n')
         self.assertEqual(self.run_lint().returncode, 0, "占位符形态应放行")
 
+    # ---------- 红线 6 的覆盖面：不只 skills/，而是整个仓库 ----------
+    # 真实事故形态是把 curl 粘进 README 或设计说明，而不是粘进正式的 operations 文档。
+    def test_scans_repo_root_files_not_only_skills(self) -> None:
+        (self.root / "README.md").write_text(
+            "# 说明\n联系人 zhangsan@somecorp.cn\n", encoding="utf-8")
+        self.assert_fails_with("疑似真实邮箱")
+
+    def test_scans_non_skills_directories(self) -> None:
+        (self.root / "doc").mkdir()
+        (self.root / "doc" / "auth.md").write_text(
+            "调研时用的号码 13912345678。\n", encoding="utf-8")
+        self.assert_fails_with("疑似真实手机号")
+
+    def test_detects_jwt_in_pasted_curl(self) -> None:
+        self._append_to_doc(
+            "\n```\ncurl -H 'cookie: t=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NSJ9'\n```\n")
+        self.assert_fails_with("落盘了 JWT")
+
+    def test_detects_cookie_header_in_pasted_curl(self) -> None:
+        self._append_to_doc("\n```\ncurl -b 'JSESSIONID=ABC123; foo=bar'\n```\n")
+        self.assert_fails_with("落盘了 Cookie")
+
+    def test_real_repo_passes_despite_checker_own_decoys(self) -> None:
+        # 本文件与 lint 自身**必然**含诱饵字符串（见 lint 的 _PII_EXEMPT）。
+        # 豁免写错或漏掉时，真实仓库上的 lint 会自己把自己拦住 —— 这条直接跑真实仓库。
+        r = subprocess.run(
+            [sys.executable, str(LINT)],
+            env={k: v for k, v in os.environ.items() if k != "CLLMK_LINT_ROOT"},
+            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=120,
+        )
+        self.assertEqual(r.returncode, 0, "真实仓库上 lint 应通过：\n" + r.stdout + r.stderr)
+
     # ---------- WARNING 档：不阻断，但 --strict 下要能提升 ----------
     def test_quote_violation_is_warning_not_error(self) -> None:
         f = self.p("skills/ats/references/operations/job-delete.md")
