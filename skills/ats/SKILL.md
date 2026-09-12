@@ -1,8 +1,8 @@
 ---
 name: ats
 metadata:
-  version: "1.15.1"
-description: "Moka ATS 业务的 cllmk 统一入口，覆盖候选人/申请删除、人才库移除、应聘阶段移动、候选人字段和登记表、职位与 HC 字段、Offer 字段与模块（含选项级联动、隐藏/显示）、Offer 附件模板（生成带占位符的 docx、上传、保存、电子签开关）、单 ATS 系统的职位级别（职级）增删改查与合并、职位硬删除、国家维度渠道保护期、面试评价表配置、面试题库增删改查，并在业务前按需加载安装、鉴权和 current 租户规则。用户提出上述 ATS 业务操作、相关接口路径，或要求在指定公司/org 下执行 ATS 操作时使用；只想安装或升级 `cllmk`、找不到命令，或只问登录/登出/会话过期/HTTP 401/403 时也用本 skill（规则在 `references/foundation/` 的 `install.md` 与 `auth.md`，没有独立入口）；只想查看已登录公司、列出或切换 current 租户/org/profile 时也用本 skill（规则在 `references/foundation/tenant-switch.md`）。职位批量创建、跨租户迁移、简历/数据保留期限（用 `ats-resume-retention`）、Moka People 人事字段与 People 侧职位级别（用 `people`）不在本 skill 覆盖范围。"
+  version: "1.16.0"
+description: "Moka ATS 业务的 cllmk 统一入口，覆盖候选人/申请删除、人才库移除、应聘阶段移动、候选人字段和登记表、职位与 HC 字段、Offer 字段与模块（含选项级联动、隐藏/显示）、Offer 附件模板（生成带占位符的 docx、上传、保存、电子签开关）、单 ATS 系统的职位级别（职级）增删改查与合并、职位硬删除、国家维度渠道保护期、面试评价表配置、面试题库增删改查、公司会议室查询与「面试是否可用」开关，并在业务前按需加载安装、鉴权和 current 租户规则。用户提出上述 ATS 业务操作、相关接口路径，或要求在指定公司/org 下执行 ATS 操作时使用；只想安装或升级 `cllmk`、找不到命令，或只问登录/登出/会话过期/HTTP 401/403 时也用本 skill（规则在 `references/foundation/` 的 `install.md` 与 `auth.md`，没有独立入口）；只想查看已登录公司、列出或切换 current 租户/org/profile 时也用本 skill（规则在 `references/foundation/tenant-switch.md`）。职位批量创建、跨租户迁移、简历/数据保留期限（用 `ats-resume-retention`）、Moka People 人事字段与 People 侧职位级别（用 `people`）不在本 skill 覆盖范围。"
 compatibility: "Requires the cllmk CLI for live Moka API calls; installation guidance supports macOS, Linux, and Windows PowerShell."
 ---
 
@@ -50,6 +50,7 @@ compatibility: "Requires the cllmk CLI for live Moka API calls; installation gui
 | **application** 应聘 | 移动/推进候选人应聘阶段、`move-stage/v2` | `application-move-stage` | `references/operations/application-move-stage.md` |
 | **interview** 面试 | 面试评价表、评价表模板、`feedbackTemplates` | `interview-feedback-form` | `references/operations/form-config/interview-feedback-form.md` |
 | **interview** 面试 | 面试题库、面试题的增删改查、`interviewQuestion/getInterviewQuestionList`、`interviewQuestion/save`、`interviewQuestion/update`、`interviewQuestion/delete` | `interview-question-bank` | `references/operations/interview-question-bank.md` |
+| **interview** 面试 | 公司会议室、会议室列表、面试是否可用、开启/关闭会议室、`room/meeting-rooms/search`、`room/meeting-rooms/updateVisible` | `meeting-room-manage` | `references/operations/meeting-room-manage.md` |
 | **offer** Offer | Offer 字段、Offer 自定义字段、Offer 模块/分组、Offer 字段联动、`ats-offer/customFields`、`ats-offer/customFieldGroup`、`offer-custom-field-link` | `offer-field-manage` | `references/operations/offer-field-manage.md` |
 | **offer** Offer | Offer 附件模板、录用通知函/录用通知书模板、模板里的字段占位符、电子签签署区、`office_template/offer/upload`、`ats-offer/template/save`、`getOfferTemplateById` | `offer-template-manage` | `references/operations/offer-template-manage.md` |
 | **talent-pool** 人才库 | 从人才库移除候选人、`talent-pool-candidates/bulk/delete` | `talent-pool-candidate-delete` | `references/operations/talent-pool-candidate-delete.md` |
@@ -72,6 +73,11 @@ compatibility: "Requires the cllmk CLI for live Moka API calls; installation gui
 | 「满意度/人才/简历筛选/试工反馈 评价表」 | 不在本 skill 覆盖范围；`interview-feedback-form` 只做面试评价表 |
 | 「评价表绑定到职位/面试轮次」 | 不在本 skill 覆盖范围；`interview-feedback-form` 只管模板本体，需提示用户手工绑定 |
 | 「面试题」「题库」 | `interview-question-bank` |
+| 「会议室」 | `meeting-room-manage`（只做查询与单个会议室的「面试是否可用」开关） |
+| 「停用会议室」 | 停下区分：关闭**单个**会议室 → `meeting-room-manage`；停用整个**会议室来源**（飞书/钉钉卡片上的「停用」）→ 不在本 skill 覆盖范围 |
+| 「会议室用不了」「安排面试选不到会议室」 | `meeting-room-manage`，先按主文档「上位开关」读总开关与当前生效来源，不要直接改单个会议室 |
+| 「新增/删除会议室」「改会议室容量、设备」 | 不在本 skill 覆盖范围；`meeting-room-manage` 只能开关「面试是否可用」 |
+| 「会议室被谁占了」「会议室空闲查询」 | 不在本 skill 覆盖范围；`meeting-room-manage` 只管是否可选，不管实际占用 |
 | 「评价表关联题库」 | 关联字段在 `interview-feedback-form`，题目本体在 `interview-question-bank` |
 | 「校招的面试题库」 | 不存在这个概念：题库**不分**社招/校招（`interview-question-bank`）；分场景的是评价表（`interview-feedback-form`，每张表带 `hireMode`） |
 | 「面试结果规则」「面试评价选项」增改 | 不在本 skill 覆盖范围；`interview-feedback-form` 只读取它们做 ID 映射 |
