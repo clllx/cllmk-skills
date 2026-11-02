@@ -133,6 +133,12 @@ cllmk curl --url /api/outer/ats-common/room/meeting-rooms/vendors/setting \
 把返回的 `vendor` 与目标会议室对象上的 `vendor` 字段比对。两者不一致说明用户说的会议室不在当前生效来源下，
 **停止写入**并向用户说明，不要自行切换来源。
 
+> **`vendors/available` 的 `true` 不等于「正在生效」。** 实测 `global` 租户 `vendors/available` 返回 12 个来源、
+> 其中 11 个为 `true`（仅 `WORK_WECHAT` 为 `false`），但 `vendors/setting` 只有 `LARK_V2` 一个生效，
+> `search` 回来的 104 个会议室 `vendor` 也全部是 `LARK_V2`。
+> `available` 表达的是「租户可以选哪些来源」，**不是**「当前有哪些来源在跑」。
+> 禁止用 `available` 推断租户有哪些来源的会议室，也禁止据此判断多来源并存。
+
 「开启多组织（应用）会议室」是第三个开关（`vendors/multi-app/status`，返回
 `{"enabled":<bool>,"status":"<状态>","statusUpdatedAt":<毫秒时间戳>,"version":"1.0"}`）。
 它影响的是多组织场景下会议室的归属范围，与单个会议室的 `visible` 不构成上下位关系，
@@ -319,6 +325,50 @@ guard && cllmk curl --url /api/outer/ats-common/room/meeting-rooms/updateVisible
 - 每条写入前都重新跑 `guard`（orgId 可能在任务中途被别的流程切走）。
 - 逐条记录「原值 → 目标值 → 实际回读值」，全部执行完后一次性回读 `search` 做总账核对。
 - 任何一条返回非 `success` 时**停止整批**，把已改动的条目报给用户，不要继续往下跑。
+- **每条请求加客户端超时**，不要无限等待。挂起时先回读再决定，见下一节。
+- 实测健康状态下约 **3.5 秒/条**（含 `guard` 的一次 `auth status`）；50 条约 3 分钟。
+  据此估算任务时长，并对照下一节的会话有效期风险。
+
+### 长批量：会话过期与网络抖动（实测，2026-09-12）
+
+长批量最危险的失败模式**不是报错，是挂起**。两个坑：
+
+**1. 会话可能在批量中途过期，且表现为请求挂起而非 401**
+
+实测 `global` 租户批量关闭 50 个会议室时，前 3 条正常写入（约 30 秒/条），第 4 条 `updateVisible`
+**挂起 15 分钟不返回**。此时：
+
+- 请求**不会**立刻回 401，也不会返回任何业务码，就是干挂。
+- 主动重试后才看到 `auth status` 返回 `Session expired. Credentials preserved`，
+  接口返回 `{"code":100001,"msg":"需要登录才能进行该操作","success":false}`。
+- 回读确认该条写入**未生效**（目标仍是旧值），即挂起期间没有产生半写。
+
+> **强制**：批量开始前确认会话新鲜度（必要时先重新 login）—— 开跑时 `auth status` 为 `code:0`
+> 只证明「此刻有效」，不证明「十分钟后仍有效」。
+> `guard` 里把 `Session expired` / `code:100001` 当作**独立分支立即停批**，不要当成网络问题干等或重试。
+> 停批后按 `<skill-dir>/references/foundation/auth.md` 重新登录，**回读确认断点**，再从断点续跑。
+
+**2. 区分「可重试」与「不可重试」的网络错误**
+
+实测同一租户出现过 TLS 握手抖动，采样失败率 20~80%：
+
+```
+{"code":1,"data":null,"msg":"Request failed: Client network socket disconnected before secure TLS connection was established"}
+```
+
+| 错误 | 可否重试写请求 | 理由 |
+|---|---|---|
+| `before secure TLS connection was established` | **可以** | 错误信息本身证明连接在 TLS 建立前就断了，HTTP 请求未发出，不可能半写 |
+| `ENOTFOUND` / `EAI_AGAIN` | 可以 | DNS 未解析，请求未到服务端 |
+| `ECONNRESET` / `ETIMEDOUT` / `socket hang up` / 纯挂起 | **不可以** | 无法证明发生在请求到达服务端之前 |
+
+不可重试的分支一律先用 `search` 回读确认实际状态，把「未知」变成「已知生效 / 已知未生效」再决定下一步；
+回读也拿不到结果时停止并向用户报告「结果未知」。
+
+**3. macOS 没有 `timeout` 命令**
+
+`timeout 60 cllmk curl ...` 在 macOS 上返回 `exit 127` 且**输出为空**，极易被误读成「接口无响应」。
+需要客户端超时时自行实现（如 perl `fork` + `alarm`），不要依赖 `timeout`。
 
 ---
 
@@ -330,6 +380,7 @@ guard && cllmk curl --url /api/outer/ats-common/room/meeting-rooms/updateVisible
 |---|---|---|
 | `0` | 成功 | — |
 | `-1` | 系统错误 | `search` 省略 `type` 或传 `type: null`。**这是未处理异常泄漏，不是业务码** |
+| `100001` | 需要登录才能进行该操作 | cllmk 会话已过期。**所有端点**（读写都算）都会返回它。按 `foundation/auth.md` 重新登录，不要当成业务权限问题 |
 
 ### 判定成败只看内层
 
@@ -362,6 +413,8 @@ guard && cllmk curl --url /api/outer/ats-common/room/meeting-rooms/updateVisible
 - **禁止**在未确认「使用会议室」总开关为 `true` 的情况下执行 `updateVisible`。
 - **禁止**猜测未验证分支的错误码含义或构造未覆盖端点的 payload（§5 红线 3）。
 - **禁止**用 `;` 串联 status 与写请求；必须 `&&` 短路。
+- **禁止**把请求挂起当成「服务端慢」干等；挂起优先怀疑会话过期（见「长批量」一节），并加客户端超时。
+- **禁止**对无法证明发生在连接建立前的网络错误重试写请求；必须先 `search` 回读确认实际状态。
 - **禁止**把整份 `search` 响应打到终端或读进上下文；必须先解析。
 - **禁止**展示或记录 Cookie 明文。用户贴带 `-b` 的 curl 时提醒去掉 Cookie 段，改用 `cllmk curl` 复现。
 
@@ -388,13 +441,30 @@ guard && cllmk curl --url /api/outer/ats-common/room/meeting-rooms/updateVisible
 
 ## 验证说明
 
-本文的行为结论来自在浏览器上对真实租户的接口实测（读接口直接调用，写接口通过界面操作抓包复现），
-样本为单一租户、单一会议室来源。以下几点**未经验证**，使用时按「错误码」一节的规定停止并回报：
+本文的行为结论来自对真实租户的接口实测，样本为单一租户（`orgId=global` / `env=intl`）、单一会议室来源（`LARK_V2`）。
+
+### 第二轮：`cllmk curl` 实跑复验（2026-09-12）
+
+第一轮走浏览器直连，本轮用 `cllmk curl` 全量复跑，**7 个端点全部覆盖**。以下结论已由实跑确认：
+
+- **`cllmk curl` 外层包络与本文一致** —— 外层 `{"code":0,"data":<服务端响应体>,"msg":""}`，
+  业务数据在 `data.data`。第一轮遗留的「未经 cllmk curl 实跑验证」一项**已消除**。
+- `search` 的 9 种参数组合逐一复验：省略 `type` 与 `type:null` 均返回 `-1 系统错误`；
+  `""` / `123` / `"MOKA"` / 任意不存在的字符串均成功且返回**完全一致**；
+  `displayInvisible` 省略等同 `false`。全部与本文一致。
+- 数据模型 13 字段在 104 条上**无一缺键**；`id` 恒为 9 位字符串；
+  `locationId`(int) 与 `location.id`(str) 直接 `==` 为 `False`；`devices` 为字符串；`version` 恒 `"1.0"`。
+  `orgId` 的值是**字符串形态的租户标识**（本租户为 `"global"`，不是数字）。
+- `updateVisible` 成功响应确认**只有 `code` / `codeType` / `msg` / `success` 四个键，没有 `data`**。
+- 往返写测试（`false → true → false`）确认操作**可逆**、会议室不被删除、**列表顺序不变**（目标始终在原下标）。
+- 批量实测：50 条串行写入，健康时约 3.5 秒/条；期间会话中途过期一次、TLS 抖动一次，
+  相关坑已写入「长批量：会话过期与网络抖动」一节。
+
+### 仍未验证，遇到即按「错误码」一节停止并回报
 
 - `updateVisible` 的错误分支：不存在的 `id`、跨租户 `id`、省略 `visible`、重复设置同一值的幂等性。
+  （第二轮刻意未测：跨租户 `id` 会触碰其他租户数据；其余三项需专门的实测窗口。）
 - `updateVisible` 的 `id` 传数字类型的行为。
 - 校招会话下 `search` 的返回是否与社招一致（页面标记为「全局」，推断不分场景，但未在校招会话下比对）。
-- 多个会议室来源同时可用时 `search` 的返回形态（实测租户只有一个来源生效）。
-- `cllmk curl` 的外层包络形态按本仓库既有约定书写（外层 `code` + `data` 承载服务端响应体），
-  本轮实测走的是浏览器直连，**未经 `cllmk curl` 实跑验证**。首次执行时若外层结构与本文不符，
-  以实跑为准并回填本文档。
+- 多个会议室来源**同时生效**时 `search` 的返回形态。注意：`vendors/available` 有 11 个 `true`
+  **不等于**多来源并存（见「上位开关」），该租户实际只有 `LARK_V2` 生效，因此本项仍无样本。
