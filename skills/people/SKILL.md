@@ -1,7 +1,7 @@
 ---
 name: people
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
 description: "Moka People 人事系统的 cllmk 统一操作入口。当前覆盖「人事设置 → 员工信息设置」的分组与字段管理：查询档案分类/分组/字段；创建自定义分组、给分组改名、停用与启用分组；创建自定义字段（含「人员」类型）、编辑字段、停用与启用字段。用户提到 Moka People、人事系统、员工信息设置、员工字段、人事字段、档案分类、字段分组、添加分组、分组改名、停用分组、core.mokahr.com，或 `model/list`、`model/add`、`model/edit`、`model/enable`、`model/disable`、`field/add`、`field/edit`、`field/detail`、`field/enable`、`field/disable`、`combinedField/list` 等接口时使用本 skill。ATS 招聘侧的候选人字段、登记表、职位与 HC 字段属于 `ats` skill，不要路由到这里。只问 `cllmk` 安装升级、登录登出、会话过期、查看或切换已登录公司时也用本 skill（规则在 `references/foundation/`，没有独立入口）。先按路由表选择唯一业务文档，再按需加载参考，禁止一次性读取全部 references。"
 compatibility: "依赖 cllmk CLI 与一个 system=people 的有效会话；安装、鉴权、租户切换规则见本 skill 的 references/foundation/。"
 ---

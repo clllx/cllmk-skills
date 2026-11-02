@@ -198,7 +198,7 @@ cllmk curl \
 ]
 ```
 
-**编辑**时读写结构不对称，规则见 §5.4.2。没有 ATS 那种选项 ID（`codes`）的概念。
+**编辑**时不用 `values`，改传 `oldValues` + `newValues`，规则见 §5.4.2。没有 ATS 那种选项 ID（`codes`）的概念。
 
 ### 4.5 证件组合字段(9)
 
@@ -333,7 +333,8 @@ cllmk curl \
 | `isUnique` | ✅ | ✅ | ✅ | ❌ **不传** |
 | `isGroupTitle` | ✅ | ✅ | ❌ **不传** | ✅ |
 | `applyTargetLibrary` | ✅ 固定 `true` | ✅ 固定 `true` | ✅ 固定 `true` | ❌ **不传** |
-| `values` | — | ✅ | — | — |
+| `values`（仅创建） | — | ✅ | — | — |
+| `oldValues` + `newValues`（仅编辑，替代 `values`，见 §5.4.2） | — | ✅ | — | — |
 | `unitRequired` | — | — | ✅ | — |
 | `biz` | — | — | — | ✅ 目标分组的 `biz` |
 | `combineInstances` | — | — | — | ✅ |
@@ -356,7 +357,7 @@ cllmk curl \
   --payload '<完整 JSON，含 attrId>'
 ```
 
-payload 结构与创建**完全相同**，只是 `attrId` 填字段 ID。
+payload 结构与创建相同，只是 `attrId` 填字段 ID；**单选(5) 例外**：选项用 `oldValues` + `newValues` 代替 `values`，见 §5.4.2。
 
 > 🔴 **`field/edit` 会覆盖 payload 中的每一个键，漏传即重置。**
 >
@@ -369,7 +370,10 @@ payload 结构与创建**完全相同**，只是 `attrId` 填字段 ID。
 
 **修改 `modelId` 会把字段移动到另一个分组**。用户只说改名时，`modelId` 必须原样传回，不能省略也不能改动。
 
-#### 5.4.2 编辑单选字段的 `values`
+#### 5.4.2 编辑单选字段的选项：`oldValues` + `newValues`
+
+> 🔴 **编辑时不传 `values`，改传 `oldValues` + `newValues` 两个键。** 只传 `values` 时服务端会忽略它，
+> 选项改动全部丢失，只有名称等其他键生效。`values` 只用于创建（§4.4）。
 
 `field/detail` 读回的选项是完整对象：
 
@@ -378,20 +382,38 @@ payload 结构与创建**完全相同**，只是 `attrId` 填字段 ID。
  "isCanModify":1,"checked":0,"type":0,"sortNo":1,"valueInitials":null,"hot":null}
 ```
 
-**规则：**
+编辑 payload 中的选项部分：
+
+```json
+"oldValues": [
+  {"id":<option-id-1>,"idx":1,"value":"专员（改名后）","isDelete":1,"isDisable":1,
+   "isCanModify":1,"checked":0,"type":0,"sortNo":1,"valueInitials":null,"hot":null},
+  {"id":<option-id-2>,"idx":2,"value":"经理", ... ,"sortNo":3}
+],
+"newValues": [
+  {"value":"主管","sortNo":2}
+]
+```
+
+**组装规则：**
+
+1. 先把目标选项排成**最终显示顺序**（原选项和新增项混在一起），从 1 开始连续编号，编号就是每一项的 `sortNo`。
+2. 原选项进 `oldValues`：在 `field/detail` 读回的**完整对象**上只改 `value` 和 `sortNo`，其余键（包括 `id`、`idx`）原样保留。
+3. 新增项进 `newValues`：只有 `{"value", "sortNo"}`，不传 `id`（由服务端分配）。
+4. 没有新增项时传 `"newValues": []`。
 
 | 变更类型 | 处理 |
 |---|---|
-| 修改已有选项文案 | **保留其 `id`**，只改 `value` |
-| 新增选项 | 不传 `id`（新项由服务端分配） |
-| 调整顺序 | 按目标显示顺序重排 `sortNo`；`id` 一律保留 |
-| 删除选项 | ⚠️ 未实证。停下询问用户，不要自行省略某项 |
+| 修改已有选项文案 | 在 `oldValues` 里改该项的 `value`，**保留 `id`** |
+| 新增选项 | 加进 `newValues`，`sortNo` 取它在最终顺序里的位置（可以插在原选项中间） |
+| 调整顺序 | 按最终顺序重新编号所有项的 `sortNo`；`id` 一律保留 |
+| 删除选项 | ⚠️ 未实证。停下询问用户，不要自行从 `oldValues` 里去掉某项 |
 
-`sortNo` 是显示顺序，`idx` 是创建序号（只读，不用管）。
+`sortNo` 是显示顺序，`idx` 是创建序号（只读，原样传回）。
 
-> 依据：实测把「专员」改名 + 在中间插入新选项后，所有原选项的 `id` 全部保留（包括显示位置后移的那个）。若不传 `id`，服务端无法按位置匹配，必然重建选项并丢失数据关联。
+> 依据：页面「编辑字段」弹窗提交单选（type 5）时，前端按选项是否已有 `id` 拆成 `oldValues`（完整原对象 + 重新编号的 `sortNo`）与 `newValues`（`{value, sortNo}`），编辑请求中不带 `values`；创建时才把新增项作为 `values` 提交。这和使用中观察到的「传 `values` 只有名称生效」一致。
 >
-> ⚠️ 该结论由 id 保留反推得出，未直接抓到 edit 的 body。**首次执行单选编辑前，先在测试租户跑一次并用 `field/detail` 复核 id 是否保留。**
+> 删除选项时页面会把该项从 `oldValues` 中去掉，但服务端是否会因此删除选项、是否影响已有员工数据，**尚未实证**。
 
 ### §5.5 停用字段
 
